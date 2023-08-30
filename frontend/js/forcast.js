@@ -1,5 +1,4 @@
 
-let animations = [];
 let circles = [];
 export let initialRadius = 100000;
 
@@ -136,7 +135,7 @@ function calculateCircleCoordinates(center, radius, numPoints) {
     return circleCoordinates;
 }
 
-function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData){
+async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData){
 
     const distance = 0.001; // 100 Meter in Grad (angenommen)
     const points = calculatePerpendicularCoordinates(pathCoordinates, distance);
@@ -247,7 +246,6 @@ function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoDat
                 });
                 animateConvexHull(hullPolygon);
             }, 1000); // 1 Sekunde Verzögerung zwischen den Schritten
-            animations.push(animation);
         }
         }
 
@@ -255,10 +253,10 @@ function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoDat
 }
 
 
-function getLayers(responseData, map, meteoData){
+async function getLayers(responseData, map, meteoData) {
     for (const key in responseData) {
         let coordinatesArray = [];
-        let dictCoordinates =  responseData[key];
+        let dictCoordinates = responseData[key];
         for (const key in dictCoordinates) {
             if (dictCoordinates.hasOwnProperty(key)) {
                 const coordinate = dictCoordinates[key];
@@ -268,17 +266,12 @@ function getLayers(responseData, map, meteoData){
         let startTime = Object.values(dictCoordinates)[0].startTime;
         let date = Object.values(dictCoordinates)[0].dateAquired;
         coordinatesArray = swapCoordinates(coordinatesArray);
-        pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key]);
+        await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key]);
     }
 }
 
-export function getForcastLayer(responseData, map, circles, meteoData) {
-    if (animations.length > 0) {
-        for (let i = 0; i < animations.length; i++) {
-            clearInterval(animations[i]);
-        }
-        animations = [];
-    }
+export async function getForcastLayer(responseData, map, circles, meteoData) {
+    console.log("new forcast for rectangle selected")
     for (const key in responseData) {
         const response = responseData[key];
         const meteo = meteoData[key];
@@ -289,9 +282,8 @@ export function getForcastLayer(responseData, map, circles, meteoData) {
             circles = addRedCircleToIcon(firstCoordinate[0], firstCoordinate[1], map);
             continue;
         }
-        getLayers(response, map, meteo);
+        await getLayers(response, map, meteo);
     }
-  //  map.on('zoomend', updateCircleRadius(map));
 
     return circles;
 }

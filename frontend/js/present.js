@@ -4,8 +4,8 @@ import {parseTime, getStartAndEndDate, parseDate, parseConfidence, parseCoordina
 
 //////////////////////////////////////////////////////////////////
 /*change here for local application or deployment*/
-//const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
-const backendURL = "http://127.0.0.1:8000";
+const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
+//const backendURL = "http://127.0.0.1:8000";
 /*For deployment set to true!*/
 const EFfiData = true;
 const NASAData = true;
@@ -105,20 +105,20 @@ function getMap(){
 
       rectangles.forEach(function(rectangleData) {
           const rectangle = L.rectangle(rectangleData.bounds, {color: 'darkred', weight: 2}).addTo(map);
-          rectangle.on('click', function(event) {
+          rectangle.on('click', async function (event) {
               const bounds = rectangle.getBounds();
               let corner1 = bounds.getSouthWest();
               let corner2 = bounds.getNorthEast();
 
               map.removeLayer(rectangle);
 
-              if(NASAData){
+
+              if (NASAData) {
                   getKMLLayer(modis_active, corner1, corner2);
-              }
-              else{
+              } else {
                   getKMLLayer(modis_backup, corner1, corner2);
               }
-            });
+          });
       });
 
     L.control.custom({
@@ -214,8 +214,6 @@ function processKMLData(kmlData, corner1, corner2){
                     [parsedValues, parsedCoordinates] = processKMLData(kmlData, corner1, corner2)
                     return [parsedValues, parsedCoordinates];
                 }
-
-              deleteWheelWaiting();
               return [parsedValues, parsedCoordinates];
           }
           return [parsedValues, parsedCoordinates];
@@ -285,7 +283,7 @@ async function processAndMapData(parsedValues, parsedCoordinates) {
     meteoData = responseData['meteo_data'];
     responseDataAll[dataCounter] = coordinatesData;
     meteoDataAll[dataCounter] = meteoData;
-    circles = getForcastLayer(responseDataAll, map, circles, meteoDataAll);
+    circles = await getForcastLayer(responseDataAll, map, circles, meteoDataAll);
     dataCounter++;
     return parsedValues;
 }
@@ -305,22 +303,21 @@ async function catchMODISArchiveData(kmlData, corner1, corner2) {
 
 async function loadForcastInBackground(parsedValues, parsedCoordinates) {
     const origParsedCoordinates = parsedCoordinates;
-    let noStart = 0;
     let noEnd = 4;
-    createWheelWaiting(map);
 
-    while (noStart < Object.keys(origParsedCoordinates).length) {
+    for (let noStart = 0; noStart < Object.keys(origParsedCoordinates).length; noStart += 4){
+        console.log("new rectangle");
         parsedCoordinates = minimizeDictionary(origParsedCoordinates, noStart, noEnd);
         await processAndMapData(parsedValues, parsedCoordinates);
-        noStart += 4;
         noEnd += 4;
     }
-    deleteWheelWaiting();
+
 }
 
 
-function getKMLLayer(kmlData, corner1, corner2){
-    fetch(kmlData)
+async function getKMLLayer(kmlData, corner1, corner2){
+    createWheelWaiting(map);
+    await fetch(kmlData)
         .then(response => response.text())
         .then(async data => {
             //let kmlData;
@@ -348,14 +345,9 @@ function getKMLLayer(kmlData, corner1, corner2){
             }
 
             console.log(backendURL + "/process_data");
-
-            async function waitToFinish(){
-                await loadForcastInBackground(parsedValues, parsedCoordinates);
-            };
-
-            await waitToFinish();
-           // deleteWheelImage();
-            console.log("FINISHED")
+            await loadForcastInBackground(parsedValues, parsedCoordinates);
+            deleteWheelWaiting();
+            console.log("FINISHED");
         }).catch(error => console.error('Fehler beim Laden der KML-Datei:', error));
 }
 

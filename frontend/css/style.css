@@ -137,6 +137,10 @@ img { max-width: 100%; }
   cursor: pointer;
 }
 
+.leaflet-control-layers label {
+      font-size: 14px !important;
+}
+
 .btn-zoomout {
   background-color: darkred;
   color: #f6f6f6;

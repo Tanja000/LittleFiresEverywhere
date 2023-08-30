@@ -67,6 +67,11 @@ function getMap(){
         maxZoom: 21,
         attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
     });
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 21,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    });
+
     map = L.map('map', {
         center: originalCenter,
         zoom: originalZoom,
@@ -75,6 +80,12 @@ function getMap(){
     map.setMinZoom(3);
     osm.addTo(map);
     map.on('zoom', updateCircles);
+
+     const baseMaps = {
+        "Grey Map": osm,
+        "Open Street Map": osmLayer
+      };
+     L.control.layers(baseMaps).addTo(map);
 
     //Europa: [71.5, -33.0], [34.5, 44.0]
     const distLat = (71.5 - 34.5)/2;

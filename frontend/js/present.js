@@ -1,4 +1,4 @@
-import {getForcastLayer, createWheelWaiting, deleteWheelWaiting, popupOptions} from "./forcast.js";
+import {getForcastLayer, createWheelWaiting, deleteWheelWaiting, popupOptions, initialRadius} from "./forcast.js";
 import {parseTime, getStartAndEndDate, parseDate, parseConfidence, parseCoordinates, getRectangleData,
     fetchEffiKMLContent, fetchKMLContent, minimizeDictionary, parseCDATA, responseDataManual} from "./present_helper.js";
 
@@ -7,8 +7,8 @@ import {parseTime, getStartAndEndDate, parseDate, parseConfidence, parseCoordina
 //const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
 const backendURL = "http://127.0.0.1:8000";
 /*For deployment set to true!*/
-const EFfiData = false;
-const NASAData = false;
+const EFfiData = true;
+const NASAData = true;
 const weatherApi = true;
 //////////////////////////////////////////////////////////////////
 
@@ -21,7 +21,6 @@ let map;
 let osm;
 let confidenceThreshhold = 90;
 let markers = [];
-let responseDataAll = {};
 let meteoDataAll = {};
 let dataCounter = 0;
 let day_start;
@@ -38,14 +37,20 @@ function setEffiUrl(){
 
 
 function updateCircles(){
-    const minZoomToDelete = 8;
+   const zoomLevel = map.getZoom();
+   for (const circle of circles){
+          const adjustedRadius = initialRadius - (zoomLevel * 5000) ; // initialRadius / Math.pow(2, zoomLevel - 10); // Adjust as needed
+          circle.setRadius(adjustedRadius);
+    }
+
+   const minZoomToDelete = 11;
     if (circles) {
-        if (map.getZoom() >= minZoomToDelete) {
+        if (zoomLevel >= minZoomToDelete) {
             for (let i = 0; i < circles.length; i++) {
                 map.removeLayer(circles[i]);
             }
             circlesRemoved = true;
-        } else if (map.getZoom() < minZoomToDelete) {
+        } else if (zoomLevel < minZoomToDelete) {
             if (circlesRemoved) {
                 for (let i = 0; i < circles.length; i++) {
                     circles[i].addTo(map);
@@ -236,6 +241,7 @@ function processEffiKMLData(kmlData, corner1, corner2) {
 
 
 async function processAndMapData(parsedValues, parsedCoordinates) {
+    let responseDataAll = {};
     let responseData = {};
     let coordinatesData = {};
     let meteoData = {};

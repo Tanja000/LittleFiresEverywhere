@@ -1,0 +1,9 @@
+v: 0
+micros:
+  - name: backend-fireforcast
+    src: .
+    engine: python3.9
+    primary: true
+    run: uvicorn main:app
+    public_routes:
+       - "*"

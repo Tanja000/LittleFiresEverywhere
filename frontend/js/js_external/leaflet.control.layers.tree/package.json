@@ -1,0 +1,78 @@
+{
+  "_from": "leaflet.control.layers.tree",
+  "_id": "leaflet.control.layers.tree@1.1.0",
+  "_inBundle": false,
+  "_integrity": "sha512-B4/dfplsWL2ozra6UcHOfsA20ncmtBwu2HRNdrUSB5Xcd+kK5Tuxb9I+YyjE30cy2oRA3jHoM9sU11aFXAEaBA==",
+  "_location": "/leaflet.control.layers.tree",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "leaflet.control.layers.tree",
+    "name": "leaflet.control.layers.tree",
+    "escapedName": "leaflet.control.layers.tree",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/leaflet.control.layers.tree/-/leaflet.control.layers.tree-1.1.0.tgz",
+  "_shasum": "84b5818a2d9620434be3a6ddbed221c49211d31c",
+  "_spec": "leaflet.control.layers.tree",
+  "_where": "D:\\PycharmProjects\\BeltAndRoad\\belt_and_road",
+  "author": {
+    "name": "Javier Jimenez Shaw"
+  },
+  "bugs": {
+    "url": "https://github.com/jjimenezshaw/Leaflet.Control.Layers.Tree/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Control Layers in a Tree structure",
+  "devDependencies": {
+    "blanket": "^1.2.3",
+    "chai": "~4.3.4",
+    "chai-leaflet": "^0.0.13",
+    "eslint": "^7.22.0",
+    "eslint-plugin-html": "^6.1.2",
+    "happen": "^0.3.2",
+    "leaflet": "^1.7.1",
+    "minimist": ">=0.2.1",
+    "mocha": "^8.3.2",
+    "mocha-chrome": "^2.2.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "homepage": "https://github.com/jjimenezshaw/Leaflet.Control.Layers.Tree#readme",
+  "keywords": [
+    "Leaflet",
+    "map",
+    "geo",
+    "tree",
+    "control",
+    "layers"
+  ],
+  "license": "BSD-3-Clause",
+  "main": "L.Control.Layers.Tree.js",
+  "name": "leaflet.control.layers.tree",
+  "peerDependencies": {
+    "leaflet": "^1.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jjimenezshaw/Leaflet.Control.Layers.Tree.git"
+  },
+  "scripts": {
+    "lint": "eslint L.*.js test/* examples/*",
+    "lintfix": "eslint L.*.js test/* examples/* --fix",
+    "spec": "mocha-chrome test/index.html --ignore-exceptions",
+    "test": "npm run lint && npm run spec"
+  },
+  "style": "L.Control.Layers.Tree.css",
+  "types": "L.Control.Layers.Tree.d.ts",
+  "version": "1.1.0"
+}

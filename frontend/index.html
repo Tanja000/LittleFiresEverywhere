@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+     <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-WTVBH2JTM3"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-WTVBH2JTM3');
+    </script>
+
+    <meta charset="utf-8">
+    <title>Little Fires Everywhere</title>
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta content="Wildfire Watch and Wildfire Forecast" name="description">
+    <meta content="BdgPixel" name="author">
+
+    
+    <!--styles-->
+    <link rel="icon" type="image/png" href="/img/logo-big.png">
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/owl.carousel.css" rel="stylesheet">
+    <link href="css/owl.theme.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <link href="css/responsive.css" rel="stylesheet">
+    <link rel="stylesheet" href="../js/js_external/leaflet.control.layers.tree/L.Control.Layers.Tree.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css">
+    
+    <!--fonts google-->
+    <link href='https://fonts.googleapis.com/css?family=Roboto+Slab:400,700' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Roboto:400,300,500,700' rel='stylesheet' type='text/css'>
+    
+    <!--[if lt IE 9]>
+       <script type="text/javascript" src="js/html5shiv.min.js"></script>
+    <![endif]-->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js"></script>
+    <script src='https://unpkg.com/@turf/turf/turf.min.js'></script>
+
+
+    <script type="module"  src="/js/js_external/L.KML.js"></script>
+      <script type="module"  src="/js/js_external/L.Control.Button.js"></script>
+      <script type="module"  src="/js/js_external/Leaflet.Control.Custom.js"></script>
+    <script type="module" src="/js/js_external/leaflet.control.layers.tree/L.Control.Layers.Tree.js"></script>
+    <script type="module" src="/js/custom.js"></script>
+    <script type="module" src="/js/present.js"></script>
+    <script type="module" src="/js/present_helper.js"></script>
+    <script type="module" src="/js/forcast.js"></script>
+    <script type="module" src="/js/control.js"></script>
+
+
+    <script src="/js/classie.js" type="module"></script>
+    <script src="/js/owl.carousel.min.js" type="module"></script>
+    <script src="/js/main.js" type="module"></script>
+
+  </head>
+  <body>
+    <!--PRELOADER-->
+    <div id="preloader">
+      <div id="status">
+        <img alt="logo" src="/img/logo-big.png">
+      </div>
+    </div>
+    <!--/.PRELOADER END-->
+
+    <!--HEADER -->
+    <div class="header">
+      <div class="for-sticky">
+        <!--LOGO-->
+        <div class="col-md-2 col-xs-6 logo">
+          <a  href="index.html"><img alt="logo" class="logo-nav" src="/img/logo-big.png"></a>
+        </div>
+        <!--/.LOGO END-->
+      </div>
+      <div class="menu-wrap">
+        <nav class="menu">
+          <div class="menu-list" id="menu-list">
+            <a data-scroll="" href="#home" class="home">
+              <span>Home</span>
+            </a>
+            <a data-scroll="" href="#map_section">
+              <span>Map</span>
+            </a>
+            <a data-scroll="" href="#data">
+              <span>Data</span>
+            </a>
+            <a data-scroll="" href="#about">
+              <span>About</span>
+            </a>
+            <a data-scroll="" href="#contact">
+              <span>Contact</span>
+            </a>
+          </div>
+        </nav>
+        <button class="close-button" id="close-button">Close Menu</button>
+      </div>
+      <button class="menu-button" id="open-button">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button><!--/.for-sticky-->
+    </div>
+    <!--/.HEADER END-->
+    
+    <!--CONTENT WRAP-->
+    <div class="content-wrap">
+      <!--CONTENT-->
+      <div class="content">
+        <!--HOME-->
+        <section id="home">
+          <div class="container">
+            <div class="row">
+              <div class="wrap-hero-content">
+                  <div class="hero-content">
+                    <h1>Little Fires Everywhere</h1>
+                      <h3>Firetracker and Fireforecast</h3>
+             <!--       <br>
+                    <span class="typed"></span>-->
+                  </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!--/.HOME END-->
+
+           <!--MAP-->
+       <section class="grey-bg mar-tm-10" id="map_section">
+           <div class="container">
+            <div class="row">
+              <div class="col-md-12">
+                <h3 class="title-small">
+                  <span>Map</span>
+                </h3>
+                <p class="content-detail">
+                    <a href="https://youtu.be/pjgXzWBWHg8" target="_blank">HOW TO USE VIDEO</a>
+                    <br> <br>
+                    <b>Please choose one of the red rectangles in the map below to view the current active fires. </b>
+                    <br> <br>
+                     The progression of the fire is computed when a red rectangle is chosen from the map. </b>
+                     Please allow for some time as collecting weather forecast data and performing the calculations.
+                     Additional data will be refreshed subsequently. <b> Select a fire icon to access the forecast for fire progression.</b>
+                     Only fires with a confidence level exceeding 90 are considered for the forecast.
+                    </p>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+          <div id="map"></div>
+
+        <!--/.MAP END-->
+
+        <!--DATA-->
+       <section class="grey-bg mar-tm-10" id="data">
+           <div class="container">
+            <div class="row">
+              <div class="col-md-12">
+                <h3 class="title-small">
+                  <span>Data</span>
+                </h3>
+                <p class="content-detail">
+                    <b> Active fire data</b>
+                    <br>
+                   Active fire incidents are sourced every 24 hours from the <a href="https://www.earthdata.nasa.gov/learn/find-data/near-real-time/firms" target="_blank">Moderate Resolution Imaging Spectroradiometer (MODIS)</a>.
+                   These actual fire data points—referred to as thermal anomalies—are pinpointed at the center of 1 km pixel areas.
+                   <br>
+                  Initially, the data collection is focused on Europe for testing purposes. However, the coverage will soon expand to encompass more continents, along with the inclusion of additional satellite data
+                  <br>  <br>
+                    <b> Forecast fire data</b>
+                    <br>
+                    To predict the fire's progression: <b>wind speed</b> at 10m, <b>wind direction</b> at 10m, <b>relative humidity</b> at 2m, <b>evapotranspiration</b>,
+                    <b>rain</b>, <b>soil temperature</b>, <b>soil moisture</b> and <b>temperature</b> at 2m are accessed from the <a href="https://open-meteo.com/" target="_blank">Open Meteo API.</a>
+                    Using the time when the satellite detected the fire, the fire's direction and speed is estimated for the upcoming 24 hours based on the satellite's data acquisition time and the weather forecast parameters.
+                   <br>
+                   In the near future, I will be incorporating supplementary data such as soil conditions and geographical features, encompassing deserts, lakes, and more.
+
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </section>
+        <!--/.DATA END-->
+
+         <!--ABOUT-->
+        <section id="about">
+              <!--OWL CAROUSEL2-->
+              <div class="owl-carousel2">
+                  <div class="wrap-about">
+                    <div class="col-md-12">
+                      <p class="head-about">
+                        Wildfires are on the rise. Not every small fire develops into a major blaze, and in many countries, the tendency is to wait and see if the fire extinguishes itself. This is perilous, as combating a major wildfire results in significant human and environmental losses. Every forest fire, every burning tree, has a detrimental impact on the climate.
+                        <br>
+                        To effectively battle large forest fires, extensive resources are required, including specialized aircraft and dedicated personnel. Hence, it is wiser to extinguish every small fire immediately. To achieve this, it's crucial to swiftly detect where a fire is emerging. Often, the initial spark goes unnoticed.
+                      </p>
+                    </div>
+                </div>
+
+                  <div class="wrap-about">
+                    <div class="col-md-12">
+                      <p class="head-about">
+                          It pains me deeply to witness the escalation of major forest fires every summer in the news, exacerbating the climate and environmental crisis. With this app, I endeavor to create a solution that predicts the path of a fire based on current weather parameters and ground conditions. For instance, if a fire is approaching large lakes, marshes, rivers, or the sea, emergency personnel could be organized and deployed more effectively in other areas.
+                        <br><br>
+                        I am a physicist with many years of experience in software development and data science. This project is my personal commitment and has consumed a significant amount of my free time. I am seeking sponsors who would like to support my work.
+                    </p>
+
+                      <h5 class="name">
+                        T. Reize
+                      </h5>
+                     <!-- <img alt="signature" src="/img/signature.png">-->
+                 </div>
+              </div>
+            </div>
+              <!--/.OWL CAROUSEL2 END-->
+        </section>
+        <!--/.ABOUT END-->
+
+        <!--CONTACT-->
+        <section id="contact" class="white-bg">
+          <div class="container">
+            <div class="row">
+              <div class="col-md-12">
+                <h3 class="title-small">
+                  <span>Contact</span>
+                </h3>
+                <p class="content-detail">
+                  Please feel free to reach out to me through my LinkedIn account: <a href="https://de.linkedin.com/in/tanja-reize-58177376" target="_blank"> Tanja Reize</a>.</p>
+
+              </div>
+            </div>
+          </div>
+        </section>
+        <!--/.CONTACT END-->
+        
+        <!--FOOTER-->
+        <footer>
+          <div class="footer-bottom">
+            <div class="container">
+              <div class="row">
+                <center><img src="/img/logo-big.png" alt="logo bottom" width="10%"/>
+                <p class="cr">&copy; 2023 Tanja Reize. All rights reserved.</p></center>
+              </div>
+            </div>
+          </div>
+        </footer>
+        <!--/.FOOTER-END-->
+
+      <!--/.CONTENT END-->
+      </div>
+    <!--/.CONTENT-WRAP END-->
+    </div>
+  </body>
+</html>

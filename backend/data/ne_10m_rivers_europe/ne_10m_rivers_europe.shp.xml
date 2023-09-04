@@ -1,0 +1,519 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="en">
+	<Esri>
+		<CreaDate>20150501</CreaDate>
+		<CreaTime>09023600</CreaTime>
+		<ArcGISFormat>1.0</ArcGISFormat>
+		<ArcGISstyle>ISO 19139 Metadata Implementation Specification</ArcGISstyle>
+		<SyncOnce>FALSE</SyncOnce>
+		<DataProperties>
+			<itemProps>
+				<itemName Sync="TRUE">ne_10m_rivers_europe</itemName>
+				<nativeExtBox>
+					<westBL Sync="TRUE">-21.510894</westBL>
+					<eastBL Sync="TRUE">65.848888</eastBL>
+					<southBL Sync="TRUE">27.313381</southBL>
+					<northBL Sync="TRUE">70.093166</northBL>
+					<exTypeCode Sync="TRUE">1</exTypeCode>
+				</nativeExtBox>
+				<itemSize Sync="TRUE">1.088</itemSize>
+				<itemLocation>
+					<linkage Sync="TRUE">file://\\SUL-GISLAB\GIS_Shared\GIS_Lab\DATA\World_BaseLayers_2010_NaturalEarth2.0.0\natural_earth_vector\10m_physical\ne_10m_rivers_europe.shp</linkage>
+					<protocol Sync="TRUE">Local Area Network</protocol>
+				</itemLocation>
+				<imsContentType export="False"/>
+			</itemProps>
+			<coordRef>
+				<type Sync="TRUE">Geographic</type>
+				<geogcsn Sync="TRUE">GCS_WGS_1984</geogcsn>
+				<csUnits Sync="TRUE">Angular Unit: Degree (0.017453)</csUnits>
+				<peXml Sync="TRUE">&lt;GeographicCoordinateSystem xsi:type='typens:GeographicCoordinateSystem' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xs='http://www.w3.org/2001/XMLSchema' xmlns:typens='http://www.esri.com/schemas/ArcGIS/10.1'&gt;&lt;WKT&gt;GEOGCS[&amp;quot;GCS_WGS_1984&amp;quot;,DATUM[&amp;quot;D_WGS_1984&amp;quot;,SPHEROID[&amp;quot;WGS_1984&amp;quot;,6378137.0,298.257223563]],PRIMEM[&amp;quot;Greenwich&amp;quot;,0.0],UNIT[&amp;quot;Degree&amp;quot;,0.0174532925199433],AUTHORITY[&amp;quot;EPSG&amp;quot;,4326]]&lt;/WKT&gt;&lt;XOrigin&gt;-400&lt;/XOrigin&gt;&lt;YOrigin&gt;-400&lt;/YOrigin&gt;&lt;XYScale&gt;11258999068426.238&lt;/XYScale&gt;&lt;ZOrigin&gt;-100000&lt;/ZOrigin&gt;&lt;ZScale&gt;10000&lt;/ZScale&gt;&lt;MOrigin&gt;-100000&lt;/MOrigin&gt;&lt;MScale&gt;10000&lt;/MScale&gt;&lt;XYTolerance&gt;8.983152841195215e-009&lt;/XYTolerance&gt;&lt;ZTolerance&gt;0.001&lt;/ZTolerance&gt;&lt;MTolerance&gt;0.001&lt;/MTolerance&gt;&lt;HighPrecision&gt;true&lt;/HighPrecision&gt;&lt;LeftLongitude&gt;-180&lt;/LeftLongitude&gt;&lt;WKID&gt;4326&lt;/WKID&gt;&lt;LatestWKID&gt;4326&lt;/LatestWKID&gt;&lt;/GeographicCoordinateSystem&gt;</peXml>
+			</coordRef>
+			<copyHistory>
+				<copy date="20150501" dest="\\SUL-GISLAB\GIS_Shared\GIS_Lab\DATA\World_BaseLayers_2010_NaturalEarth2.0.0\natural_earth_vector\SGC" source="Q:\World_Hydrosheds_USGS\SGC" time="09023600"/>
+			</copyHistory>
+		</DataProperties>
+		<SyncDate>20150609</SyncDate>
+		<SyncTime>13094300</SyncTime>
+		<ModDate>20150609</ModDate>
+		<ModTime>13094300</ModTime>
+		<ArcGISProfile>ISO19139</ArcGISProfile>
+		<scaleRange>
+			<minScale>150000000</minScale>
+			<maxScale>5000</maxScale>
+		</scaleRange>
+	</Esri>
+	<mdLang>
+		<languageCode value="eng"/>
+		<countryCode Sync="TRUE" value="USA"/>
+	</mdLang>
+	<mdChar>
+		<CharSetCd value="004"/>
+	</mdChar>
+	<mdParentID>http://purl.stanford.edu/qr604qw5282.mods</mdParentID>
+	<mdHrLv>
+		<ScopeCd value="005"/>
+	</mdHrLv>
+	<distInfo>
+		<distTranOps>
+			<onLineSrc>
+				<linkage>http://purl.stanford.edu/mq785tr7173</linkage>
+				<protocol>http</protocol>
+				<orFunct>
+					<OnFunctCd value="001"/>
+				</orFunct>
+				<orName>ne_10m_rivers_europe.shp</orName>
+			</onLineSrc>
+			<transSize Sync="TRUE">1.088</transSize>
+		</distTranOps>
+		<distributor>
+			<distorCont>
+				<rpOrgName>Stanford Geospatial Center</rpOrgName>
+				<rpCntInfo>
+					<cntAddress addressType="physical">
+						<delPoint>Branner Earth Sciences Library</delPoint>
+						<city>Stanford</city>
+						<adminArea>California</adminArea>
+						<postCode>94305</postCode>
+						<eMailAdd>brannerlibrary@stanford.edu</eMailAdd>
+						<delPoint>Mitchell Building, 2nd Floor</delPoint>
+						<delPoint>397 Panama Mall</delPoint>
+					</cntAddress>
+					<cntPhone>
+						<voiceNum>650-723-2746</voiceNum>
+					</cntPhone>
+				</rpCntInfo>
+				<displayName>Stanford Geospatial Center</displayName>
+				<displayName>Stanford Geospatial Center</displayName>
+				<role>
+					<RoleCd value="005"/>
+				</role>
+				<displayName>Stanford Geospatial Center</displayName>
+			</distorCont>
+		</distributor>
+		<distFormat>
+			<formatName Sync="TRUE">Shapefile</formatName>
+		</distFormat>
+	</distInfo>
+	<dataIdInfo>
+		<idCredit>Kelso, N.V. and Patterson, T. (2012). European Rivers, 1:10 million (2012). Made with Natural Earth, online at http://www.naturalearthdata.com.</idCredit>
+		<themeKeys>
+			<thesaName>
+				<resTitle>lcsh</resTitle>
+				<date>
+					<reviseDate>2011-04-26T00:00:00</reviseDate>
+				</date>
+				<citId>
+					<identCode>http://id.loc.gov/authorities/subjects.html</identCode>
+				</citId>
+			</thesaName>
+			<keyword>Rivers</keyword>
+		</themeKeys>
+		<placeKeys>
+			<thesaName>
+				<resTitle>geonames</resTitle>
+				<date>
+					<reviseDate>2012-11-01T00:00:00</reviseDate>
+				</date>
+				<resEd>3.1</resEd>
+				<citId>
+					<identCode>http://www.geonames.org/ontology#</identCode>
+				</citId>
+			</thesaName>
+			<keyword>Europe</keyword>
+		</placeKeys>
+		<idCitation>
+			<citId>
+				<identCode>http://purl.stanford.edu/mq785tr7173</identCode>
+			</citId>
+			<collTitle>Natural Earth</collTitle>
+			<date>
+				<pubDate>2012-11-08T00:00:00</pubDate>
+			</date>
+			<resTitle Sync="FALSE">European Rivers, 1:10 million (2012)</resTitle>
+			<citRespParty>
+				<rpOrgName>North American Cartographic Information Society</rpOrgName>
+				<role>
+					<RoleCd value="010"/>
+				</role>
+			</citRespParty>
+			<citRespParty>
+				<rpIndName>Patterson, Tom</rpIndName>
+				<role>
+					<RoleCd value="006"/>
+				</role>
+			</citRespParty>
+			<citRespParty>
+				<rpOrgName>Kelso, Nathaniel Vaughn</rpOrgName>
+				<role>
+					<RoleCd value="006"/>
+				</role>
+			</citRespParty>
+			<resEd>2.0.0</resEd>
+			<otherCitDet>These data were downloaded from the Natural Earth website (http://www.naturalearthdata.com) on June 15, 2014. </otherCitDet>
+			<presForm>
+				<PresFormCd Sync="TRUE" value="005"/>
+			</presForm>
+		</idCitation>
+		<dataLang>
+			<languageCode value="eng"/>
+			<countryCode Sync="TRUE" value="USA"/>
+		</dataLang>
+		<dataChar>
+			<CharSetCd value="004"/>
+		</dataChar>
+		<idPurp>Natural Earth is a public domain map dataset available at 1:10, 1:50 and 1:110 million scales. Featuring tightly integrated vector and raster data, with Natural Earth you can make a variety of visually pleasing, well-crafted maps with cartography or GIS software.</idPurp>
+		<idAbs>&lt;DIV STYLE="text-align:Left;"&gt;&lt;DIV&gt;&lt;DIV&gt;&lt;P STYLE="margin:0 0 14 0;"&gt;&lt;SPAN&gt;This polyline shapefile depicts single-line drainages for rivers in Europe only ranked by relative importance. Includes name and line width attributes for creating tapered drainages. River data is primarily derived from the European Commission Joint Research Centre Institute for Environment and Sustainability's Catchment Characterisation and Modelling (CCM) Database 2.1 and intended for small-scale cartographic use. Only a portion of the CCM data is used, representing major rivers and lakes (classes 4 and 5 in the MAINDRAIN attributes column). Headwaters of some CCM rivers were clipped slightly downstream to provide visual separation with other river headwaters and to avoid the crests of ridges on the shaded relief. These data are represented at 1:10,000,000 scale. This layer is part of the Natural Earth Collection (v.2.0.0).&lt;/SPAN&gt;&lt;/P&gt;&lt;/DIV&gt;&lt;/DIV&gt;&lt;/DIV&gt;</idAbs>
+		<tempKeys>
+			<keyword>2012</keyword>
+		</tempKeys>
+		<idStatus>
+			<ProgCd value="001"/>
+		</idStatus>
+		<dataExt>
+			<geoEle>
+				<GeoBndBox esriExtentType="search">
+					<exTypeCode>1</exTypeCode>
+					<westBL Sync="TRUE">-21.510894</westBL>
+					<eastBL Sync="TRUE">65.848888</eastBL>
+					<northBL Sync="TRUE">70.093166</northBL>
+					<southBL Sync="TRUE">27.313381</southBL>
+				</GeoBndBox>
+			</geoEle>
+		</dataExt>
+		<dataExt>
+			<exDesc>ground condition</exDesc>
+		</dataExt>
+		<aggrInfo>
+			<assocType>
+				<AscTypeCd value="002"/>
+			</assocType>
+			<initType>
+				<InitTypCd value="002"/>
+			</initType>
+			<aggrDSName>
+				<resTitle>Natural Earth</resTitle>
+				<date>
+					<pubDate>2012-11-08T00:00:00</pubDate>
+				</date>
+				<resEd>2.0.0</resEd>
+				<citId>
+					<identCode>http://purl.stanford.edu/qr604qw5282</identCode>
+				</citId>
+				<citRespParty>
+					<rpIndName>Patterson, Tom</rpIndName>
+					<role>
+						<RoleCd value="006"/>
+					</role>
+					<displayName>Patterson, Tom</displayName>
+				</citRespParty>
+				<citRespParty>
+					<rpOrgName>Kelso, Nathaniel Vaughn</rpOrgName>
+					<role>
+						<RoleCd value="006"/>
+					</role>
+					<displayName>Kelso, Nathaniel Vaughn</displayName>
+				</citRespParty>
+				<citRespParty>
+					<rpOrgName>North American Cartographic Information Society</rpOrgName>
+					<role>
+						<RoleCd value="010"/>
+					</role>
+					<displayName>North American Cartographic Information Society</displayName>
+				</citRespParty>
+			</aggrDSName>
+		</aggrInfo>
+		<resConst>
+			<LegConsts>
+				<useConsts>
+					<RestrictCd value="008"/>
+				</useConsts>
+				<othConsts>All versions of Natural Earth raster and vector map data are in the public domain. </othConsts>
+			</LegConsts>
+		</resConst>
+		<idPoC>
+			<rpIndName>Nathaniel Vaughn Kelso</rpIndName>
+			<rpOrgName>Natural Earth</rpOrgName>
+			<rpPosName>Project manager</rpPosName>
+			<role>
+				<RoleCd value="007"/>
+			</role>
+			<rpCntInfo>
+				<cntAddress addressType="">
+					<eMailAdd>nathaniel@naturalearthdata.com</eMailAdd>
+				</cntAddress>
+			</rpCntInfo>
+		</idPoC>
+		<envirDesc Sync="TRUE">Microsoft Windows 7 Version 6.1 (Build 7601) Service Pack 1; Esri ArcGIS 10.2.2.3552</envirDesc>
+		<spatRpType>
+			<SpatRepTypCd Sync="TRUE" value="001"/>
+		</spatRpType>
+		<tpCat>
+			<TopicCatCd value="012"/>
+		</tpCat>
+	</dataIdInfo>
+	<dataSetURI>http://purl.stanford.edu/mq785tr7173</dataSetURI>
+	<mdFileID>edu.stanford.purl:mq785tr7173</mdFileID>
+	<mdContact>
+		<editorSource>external</editorSource>
+		<editorDigest>8112593d10cd6aa7c8f3c3da6c3533d0</editorDigest>
+		<rpOrgName>Stanford Geospatial Center</rpOrgName>
+		<rpCntInfo>
+			<cntAddress addressType="both">
+				<delPoint>Mitchell Bldg. 2nd floor</delPoint>
+				<city>Stanford</city>
+				<adminArea>California</adminArea>
+				<postCode>94305</postCode>
+				<eMailAdd>brannerlibrary@stanford.edu</eMailAdd>
+				<country>US</country>
+				<delPoint>397 Panama Mall</delPoint>
+			</cntAddress>
+			<cntPhone>
+				<voiceNum tddtty="">650-723-2746</voiceNum>
+			</cntPhone>
+		</rpCntInfo>
+		<displayName>Stanford Geospatial Center</displayName>
+		<editorSave>True</editorSave>
+		<displayName>Stanford Geospatial Center</displayName>
+		<role>
+			<RoleCd value="007"/>
+		</role>
+	</mdContact>
+	<contInfo>
+		<FetCatDesc>
+			<compCode>False</compCode>
+			<catLang>
+				<languageCode value="eng"/>
+			</catLang>
+			<incWithDS>True</incWithDS>
+			<catCitation>
+				<resTitle>
+					<resTitle>Feature Catalog for</resTitle> European Rivers, 1:10 million (2012)</resTitle>
+				<date>
+					<pubDate>2012-11-08T00:00:00</pubDate>
+				</date>
+				<citId>
+					<identCode>6caaa2f8-6573-433f-a7d9-9ce9955ee095</identCode>
+				</citId>
+			</catCitation>
+		</FetCatDesc>
+	</contInfo>
+	<mdHrLvName Sync="TRUE">dataset</mdHrLvName>
+	<refSysInfo>
+		<RefSystem>
+			<refSysID>
+				<identCode Sync="TRUE" code="4326"/>
+				<idCodeSpace Sync="TRUE">EPSG</idCodeSpace>
+				<idVersion Sync="TRUE">8.2.6</idVersion>
+			</refSysID>
+		</RefSystem>
+	</refSysInfo>
+	<spatRepInfo>
+		<VectSpatRep><geometObjs Name="ne_10m_rivers_europe"><geoObjTyp><GeoObjTypCd value="002" Sync="TRUE"></GeoObjTypCd></geoObjTyp><geoObjCnt Sync="TRUE">1322</geoObjCnt></geometObjs><topLvl><TopoLevCd value="001" Sync="TRUE"></TopoLevCd></topLvl></VectSpatRep></spatRepInfo>
+	<spdoinfo>
+		<ptvctinf><esriterm Name="ne_10m_rivers_europe"><efeatyp Sync="TRUE">Simple</efeatyp><efeageom code="3" Sync="TRUE"></efeageom><esritopo Sync="TRUE">FALSE</esritopo><efeacnt Sync="TRUE">1322</efeacnt><spindex Sync="TRUE">FALSE</spindex><linrefer Sync="TRUE">FALSE</linrefer></esriterm></ptvctinf></spdoinfo>
+	<eainfo>
+		<detailed Name="ne_10m_rivers_europe">
+			<enttyp>
+				<enttypl Sync="TRUE">ne_10m_rivers_europe</enttypl>
+				<enttypt Sync="TRUE">Feature Class</enttypt>
+				<enttypc Sync="TRUE">1322</enttypc>
+			</enttyp>
+			<attr>
+				<attrlabl Sync="TRUE">FID</attrlabl>
+				<attalias Sync="TRUE">FID</attalias>
+				<attrtype Sync="TRUE">OID</attrtype>
+				<attwidth Sync="TRUE">4</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+				<attrdef Sync="TRUE">Internal feature number.</attrdef>
+				<attrdefs Sync="TRUE">Esri</attrdefs>
+				<attrdomv>
+					<udom Sync="TRUE">Sequential unique whole numbers that are automatically generated.</udom>
+				</attrdomv>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">Shape</attrlabl>
+				<attalias Sync="TRUE">Shape</attalias>
+				<attrtype Sync="TRUE">Geometry</attrtype>
+				<attwidth Sync="TRUE">0</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+				<attrdef Sync="TRUE">Feature geometry.</attrdef>
+				<attrdefs Sync="TRUE">Esri</attrdefs>
+				<attrdomv>
+					<udom Sync="TRUE">Coordinates defining the features.</udom>
+				</attrdomv>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">id</attrlabl>
+				<attalias Sync="TRUE">id</attalias>
+				<attrtype Sync="TRUE">Double</attrtype>
+				<attwidth Sync="TRUE">10</attwidth>
+				<atprecis Sync="TRUE">10</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">wso_id</attrlabl>
+				<attalias Sync="TRUE">wso_id</attalias>
+				<attrtype Sync="TRUE">Double</attrtype>
+				<attwidth Sync="TRUE">10</attwidth>
+				<atprecis Sync="TRUE">10</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">objectid</attrlabl>
+				<attalias Sync="TRUE">objectid</attalias>
+				<attrtype Sync="TRUE">Double</attrtype>
+				<attwidth Sync="TRUE">10</attwidth>
+				<atprecis Sync="TRUE">10</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">featurecla</attrlabl>
+				<attalias Sync="TRUE">featurecla</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">30</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">scalerank</attrlabl>
+				<attalias Sync="TRUE">scalerank</attalias>
+				<attrtype Sync="TRUE">Double</attrtype>
+				<attwidth Sync="TRUE">10</attwidth>
+				<atprecis Sync="TRUE">10</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">rivernum</attrlabl>
+				<attalias Sync="TRUE">rivernum</attalias>
+				<attrtype Sync="TRUE">Double</attrtype>
+				<attwidth Sync="TRUE">10</attwidth>
+				<atprecis Sync="TRUE">10</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">dissolve</attrlabl>
+				<attalias Sync="TRUE">dissolve</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">200</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+			<attr>
+				<attrlabl Sync="TRUE">name</attrlabl>
+				<attalias Sync="TRUE">name</attalias>
+				<attrtype Sync="TRUE">String</attrtype>
+				<attwidth Sync="TRUE">200</attwidth>
+				<atprecis Sync="TRUE">0</atprecis>
+				<attscale Sync="TRUE">0</attscale>
+			</attr>
+		</detailed>
+	</eainfo>
+	<mdDateSt Sync="TRUE">20150609</mdDateSt>
+	<Binary>
+		<Thumbnail>
+			<Data EsriPropertyType="PictureX">/9j/4AAQSkZJRgABAQEAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a
+HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIy
+MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCACFAMgDASIA
+AhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQA
+AAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3
+ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWm
+p6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEA
+AwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSEx
+BhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElK
+U1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3
+uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iii
+gAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooqN54Y5Ui
+eWNZJM7EZgC2PQd6AJKKhF3AXZfNUFFLHPAwCQeenBHPp+IqVWV0DKwZWGQQcginZoBaKKKQBRRR
+QAUUUUAFGRnGeazrvXNPspFikuYjKzbRGJFBznGCSQAfYkZwcZrnFudVvnF1PBi8td0BlsldgpO1
+iBGWU8jaTv8AlICkZ4ztCi5K70Qmzr7i5htY/MnkWNecE98Ak/oCfoCaifULVJjCJC8ijLLEjOV+
+u0HH41z+gRz3EC2l3AwjVSJFjbMat6qQB5Z7bVY7eeBwar3PhmwilVbu4Mcccn7tDMAJIsfdC44I
+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</Data>
+		</Thumbnail>
+	</Binary>
+</metadata>

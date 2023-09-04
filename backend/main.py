@@ -5,6 +5,10 @@ import json
 from pydantic import BaseModel
 import math
 from datetime import datetime, timedelta
+import geopandas as gpd
+from shapely.geometry import Point
+
+#https://geodata.lib.utexas.edu/catalog/stanford-mq785tr7173
 
 api_url = "https://api.open-meteo.com/v1/forecast"
 
@@ -29,6 +33,37 @@ class ActionPayload(BaseModel):
     action: str
     value: int
     url: str
+
+
+def checkCoordinatesForWaterArea(lon, lat):
+    ocean_shapefile = gpd.read_file('data/ne_110m_ocean/ne_110m_ocean.shp')
+    lake_europe_shapfefile = gpd.read_file('data/ne_10m_lakes_europe/ne_10m_lakes_europe.shp')
+    river_europe_shapfefile = gpd.read_file('data/ne_10m_rivers_europe/ne_10m_rivers_europe.shp')
+
+    point = Point(lon, lat)
+    is_in_water = False
+
+    for index, row in ocean_shapefile.iterrows():
+        if point.within(row['geometry']):
+            is_in_water = True
+            break
+    for index, row in lake_europe_shapfefile.iterrows():
+        if point.within(row['geometry']):
+            is_in_water = True
+            break
+
+    for index, row in river_europe_shapfefile.iterrows():
+        if point.within(row['geometry']):
+            is_in_water = True
+            break
+
+    #if is_in_water:
+    #    print(f"Die Koordinate ({lat}, {lon}) befindet sich im Ozean.")
+    #else:
+    #    print(f"Die Koordinate ({lat}, {lon}) befindet sich nicht im Ozean.")
+
+    return is_in_water
+
 
 
 # https://open-meteo.com/ resolution 1km:
@@ -114,6 +149,7 @@ def get_meteo_data(lat, lng, date, hour_no):
     # rain mm
     # hourly=temperature_2m °C
 
+
     date_start = date
     date_end = add_days(date, 2)
     url_windspeed = "https://api.open-meteo.com/v1/forecast?latitude=" + str(lat) + "&longitude=" + str(
@@ -171,6 +207,9 @@ def get_new_coordinate(lat, lng, date, time_str):
         else:
             meteo_data_hour[hour_no] = meteo_data_hour[hour_no - 2]
         new_lat, new_lng = calculate_new_coordinates(lat, lng, meteo_data)
+        is_in_ocean = checkCoordinatesForWaterArea(new_lat, new_lng)
+        if is_in_ocean:
+            return day, meteo_data_hour
         distance = haversine_distance(lat, lng, new_lat, new_lng)
         lat = new_lat
         lng = new_lng
@@ -180,30 +219,6 @@ def get_new_coordinate(lat, lng, date, time_str):
             noNewValues = True
         else:
             noNewValues = False
-
-      #  if meteo_data['windspeed'] > wind_speed_max:
-      #      wind_speed_max = meteo_data['windspeed']
-      #  if meteo_data['relativehumidity'] > relativehumidity_max:
-      #      relativehumidity_max = meteo_data['relativehumidity']
-      #  if meteo_data['evapotranspiration'] > evapotranspiration_max:
-      #      evapotranspiration_max = meteo_data['evapotranspiration']
-      #  if meteo_data['rain'] > rain_max:
-      #      rain_max = meteo_data['rain']
-      #  if meteo_data['soil_temperature_0cm'] > soil_temperature_max:
-      #      soil_temperature_max = meteo_data['soil_temperature_0cm']
-      #  if meteo_data['soil_moisture_0_1cm'] > soil_moisture_max:
-      #      soil_moisture_max = meteo_data['soil_moisture_0_1cm']
-      #  if meteo_data['temperature_2m'] > temperature_max:
-      #      temperature_max = meteo_data['temperature_2m']
-
-    #meteo['windspeed'] = wind_speed_max
-    #meteo['relativehumidity'] = relativehumidity_max
-    #meteo['evapotranspiration'] = evapotranspiration_max
-    #meteo['rain'] = rain_max
-    #meteo['soil_temperature_0cm'] = soil_temperature_max
-    #meteo['soil_moisture_0_1cm'] = soil_moisture_max
-    #meteo['temperature_2m'] = temperature_max
-
 
     return day, meteo_data_hour
 

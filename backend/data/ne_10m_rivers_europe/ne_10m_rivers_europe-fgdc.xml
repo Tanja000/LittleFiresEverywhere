@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <origin/>
+        <origin/>
+        <pubdate>20121108</pubdate>
+        <title>European Rivers, 1:10 million (2012)</title>
+        <edition>2.0.0</edition>
+        <geoform>vector digital data</geoform>
+        <pubinfo>
+          <publish>North American Cartographic Information Society</publish>
+        </pubinfo>
+        <othercit>These data were downloaded from the Natural Earth website (http://www.naturalearthdata.com) on June 15, 2014. </othercit>
+        <onlink>http://purl.stanford.edu/mq785tr7173</onlink>
+        <lworkcit>
+          <citeinfo>
+            <origin/>
+            <origin/>
+            <pubdate>20121108</pubdate>
+            <title>Natural Earth</title>
+            <edition>2.0.0</edition>
+            <pubinfo>
+              <publish>North American Cartographic Information Society</publish>
+            </pubinfo>
+          </citeinfo>
+        </lworkcit>
+      </citeinfo>
+    </citation>
+    <descript>
+      <abstract>This polyline shapefile depicts single-line drainages for rivers in Europe only ranked by relative importance. Includes name and line width attributes for creating tapered drainages. River data is primarily derived from the European Commission Joint Research Centre Institute for Environment and Sustainability's Catchment Characterisation and Modelling (CCM) Database 2.1 and intended for small-scale cartographic use. Only a portion of the CCM data is used, representing major rivers and lakes (classes 4 and 5 in the MAINDRAIN attributes column). Headwaters of some CCM rivers were clipped slightly downstream to provide visual separation with other river headwaters and to avoid the crests of ridges on the shaded relief. These data are represented at 1:10,000,000 scale. This layer is part of the Natural Earth Collection (v.2.0.0).</abstract>
+      <purpose>Natural Earth is a public domain map dataset available at 1:10, 1:50 and 1:110 million scales. Featuring tightly integrated vector and raster data, with Natural Earth you can make a variety of visually pleasing, well-crafted maps with cartography or GIS software.</purpose>
+    </descript>
+    <status>
+      <progress>Complete</progress>
+    </status>
+    <spdom>
+      <bounding>
+        <westbc>-21.510894</westbc>
+        <eastbc>65.848888</eastbc>
+        <northbc>70.093166</northbc>
+        <southbc>27.313381</southbc>
+      </bounding>
+    </spdom>
+    <keywords>
+      <theme>
+        <themekt>lcsh</themekt>
+        <themekey>Rivers</themekey>
+      </theme>
+      <theme>
+        <themekt>ISO 19115 Topic Categories</themekt>
+        <themekey>inlandWaters</themekey>
+      </theme>
+      <place>
+        <placekt>geonames</placekt>
+        <placekey>Europe</placekey>
+      </place>
+      <temporal>
+        <tempkt>None</tempkt>
+        <tempkey>2012</tempkey>
+      </temporal>
+    </keywords>
+    <accconst>All versions of Natural Earth raster and vector map data are in the public domain. </accconst>
+    <useconst>None</useconst>
+    <ptcontac>
+      <cntinfo>
+        <cntorgp>
+          <cntorg>Natural Earth</cntorg>
+          <cntper>Nathaniel Vaughn Kelso</cntper>
+        </cntorgp>
+        <cntpos>Project manager</cntpos>
+        <cntemail>nathaniel@naturalearthdata.com</cntemail>
+      </cntinfo>
+    </ptcontac>
+    <datacred>Kelso, N.V. and Patterson, T. (2012). European Rivers, 1:10 million (2012). Made with Natural Earth, online at http://www.naturalearthdata.com.</datacred>
+    <native>Microsoft Windows 7 Version 6.1 (Build 7601) Service Pack 1; Esri ArcGIS 10.2.2.3552</native>
+  </idinfo>
+  <spdoinfo>
+    <direct>Vector</direct>
+    <ptvctinf>
+      <sdtsterm>
+        <sdtstype>String</sdtstype>
+        <ptvctcnt>1322</ptvctcnt>
+      </sdtsterm>
+    </ptvctinf>
+  </spdoinfo>
+  <eainfo>
+    <detailed>
+      <enttyp>
+        <enttypl>ne_10m_rivers_europe</enttypl>
+      </enttyp>
+      <attr>
+        <attrlabl>FID</attrlabl>
+        <attrdef>Internal feature number.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Sequential unique whole numbers that are automatically generated.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape</attrlabl>
+        <attrdef>Feature geometry.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Coordinates defining the features.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>id</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>wso_id</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>objectid</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>featurecla</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>scalerank</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>rivernum</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>dissolve</attrlabl>
+      </attr>
+      <attr>
+        <attrlabl>name</attrlabl>
+      </attr>
+    </detailed>
+  </eainfo>
+  <distinfo>
+    <distrib>
+      <cntinfo>
+        <cntorgp>
+          <cntorg>Stanford Geospatial Center</cntorg>
+        </cntorgp>
+        <cntaddr>
+          <addrtype>physical</addrtype>
+          <address>Branner Earth Sciences Library</address>
+          <address>Mitchell Building, 2nd Floor</address>
+          <address>397 Panama Mall</address>
+          <city>Stanford</city>
+          <state>California</state>
+          <postal>94305</postal>
+        </cntaddr>
+        <cntvoice>650-723-2746</cntvoice>
+        <cntemail>brannerlibrary@stanford.edu</cntemail>
+      </cntinfo>
+    </distrib>
+    <distliab>See access and use constraints information.</distliab>
+  </distinfo>
+  <metainfo>
+    <metd>20150609</metd>
+    <metc>
+      <cntinfo>
+        <cntorgp>
+          <cntorg>Stanford Geospatial Center</cntorg>
+        </cntorgp>
+        <cntaddr>
+          <addrtype>mailing and physical</addrtype>
+          <address>Mitchell Bldg. 2nd floor</address>
+          <address>397 Panama Mall</address>
+          <city>Stanford</city>
+          <state>California</state>
+          <postal>94305</postal>
+          <country>US</country>
+        </cntaddr>
+        <cntvoice>650-723-2746</cntvoice>
+        <cntemail>brannerlibrary@stanford.edu</cntemail>
+      </cntinfo>
+    </metc>
+    <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+    <metstdv>FGDC-STD-001-1998</metstdv>
+    <mettc>local time</mettc>
+  </metainfo>
+</metadata>

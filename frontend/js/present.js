@@ -27,6 +27,7 @@ let day_end;
 const originalZoom = 4;
 const originalCenter = [57, 0];
 let circles = [];
+let circleText = [];
 let circlesRemoved = false;
 
 function setEffiUrl(){
@@ -40,19 +41,21 @@ function updateCircles(){
    for (const circle of circles){
           const adjustedRadius = initialRadius - (zoomLevel * 5000) ; // initialRadius / Math.pow(2, zoomLevel - 10); // Adjust as needed
           circle.setRadius(adjustedRadius);
-    }
+   }
 
    const minZoomToDelete = 11;
     if (circles) {
         if (zoomLevel >= minZoomToDelete) {
             for (let i = 0; i < circles.length; i++) {
                 map.removeLayer(circles[i]);
+                map.removeLayer(circleText[i]);
             }
             circlesRemoved = true;
         } else if (zoomLevel < minZoomToDelete) {
             if (circlesRemoved) {
                 for (let i = 0; i < circles.length; i++) {
                     circles[i].addTo(map);
+                    circleText[i].addTo(map);
                 }
                 circlesRemoved = false;
             }
@@ -80,6 +83,22 @@ function getMap(){
         attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Map style: &copy; <a href="https://waymarkedtrails.org">waymarkedtrails.org</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
     });
 
+    const wmsUrlRiver = 'https://geowebservices.stanford.edu/geoserver/wms';
+    const wmsLayerNameRiver = 'druid:mq785tr7173';
+    const wmsLayerRiver = L.tileLayer.wms(wmsUrlRiver, {
+        layers: wmsLayerNameRiver,
+        format: 'image/png',
+        transparent: true
+    });
+
+    const wmsUrlLakes = 'https://geowebservices.stanford.edu/geoserver/wms';
+    const wmsLayerNameLakes  = 'druid:hx872sp6848';
+    const wmsLayerLakes  = L.tileLayer.wms(wmsUrlLakes, {
+        layers: wmsLayerNameLakes ,
+        format: 'image/png',
+        transparent: true
+    });
+
     map = L.map('map', {
         center: originalCenter,
         zoom: originalZoom,
@@ -96,7 +115,9 @@ function getMap(){
          "Esri Street Map": Esri_WorldStreetMap
       };
      var overlayMaps = {
-          "Hiking Trails": WaymarkedTrails_hiking
+          "Hiking Trails": WaymarkedTrails_hiking,
+          "Rivers": wmsLayerRiver,
+          "Lakes": wmsLayerLakes
         };
      L.control.layers(baseMaps, overlayMaps).addTo(map);
 
@@ -118,20 +139,36 @@ function getMap(){
 
       rectangles.forEach(function(rectangleData) {
           const rectangle = L.rectangle(rectangleData.bounds, {color: 'darkred', weight: 2}).addTo(map);
-          rectangle.on('click', async function (event) {
+          const center = L.latLng(
+                (rectangleData.bounds[0][0] + rectangleData.bounds[1][0]) / 2,
+                (rectangleData.bounds[0][1] + rectangleData.bounds[1][1]) / 2
+            );
+          const textLabel = L.marker([center.lat, center.lng], {
+              icon: L.divIcon({
+                  className: 'text-labels',
+                  html: 'Click me!',
+                  opacity: 0.7
+              }),
+              zIndexOffset: 1000
+          });
+          textLabel.addTo(map);
+
+          async function startClick(){
               const bounds = rectangle.getBounds();
               let corner1 = bounds.getSouthWest();
               let corner2 = bounds.getNorthEast();
 
               map.removeLayer(rectangle);
-
+              map.removeLayer(textLabel);
 
               if (NASAData) {
                   getKMLLayer(modis_active, corner1, corner2);
               } else {
                   getKMLLayer(modis_backup, corner1, corner2);
               }
-          });
+          }
+          textLabel.on('click', startClick);
+          rectangle.on('click', startClick);
       });
 
     L.control.custom({
@@ -296,7 +333,7 @@ async function processAndMapData(parsedValues, parsedCoordinates) {
     meteoData = responseData['meteo_data'];
     responseDataAll[dataCounter] = coordinatesData;
     meteoDataAll[dataCounter] = meteoData;
-    circles = await getForcastLayer(responseDataAll, map, circles, meteoDataAll);
+    [circles, circleText] = await getForcastLayer(responseDataAll, map, circles, meteoDataAll);
     dataCounter++;
     return parsedValues;
 }

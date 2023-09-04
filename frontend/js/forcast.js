@@ -1,6 +1,7 @@
 
 let circles = [];
 let allPolygons = {};
+let circleText = [];
 
 export let initialRadius = 100000;
 
@@ -56,6 +57,25 @@ function addRedCircleToIcon(latitude, longitude, map){
     }).on('click', function () {
             map.setView(center, 13);
         });
+
+    const textLabel = L.marker(center, {
+        icon: L.divIcon({
+            className: 'polygon-text-labels',
+            html: 'Click me!',
+            opacity: 0.7
+        }),
+        zIndexOffset: 1000
+    });
+    textLabel.addTo(map);
+    textLabel.on('click', clickTextLabel);
+
+    function clickTextLabel(){
+        map.removeLayer(textLabel);
+        map.setView(center, 13);
+    }
+
+    circleText.push(textLabel);
+
     if(circles.length > 0) {
         const exist = circleExistsAtCenter(center, circles);
         if (!exist) {
@@ -207,8 +227,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
             polygonsList.push(hullPolygon);
 
             //wegen Koordinaten rectangle Berechnung - ersten meteo Wert geglassen
-          //  if(currentIndex == 10) {
-                allPolygons[key] = polygonsList;
+             allPolygons[key] = polygonsList;
 
                 let idContent = "popupContent" + key;
                 let popupContent = "<div id=" + idContent + ">" +
@@ -300,7 +319,26 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 if(slider) {
                     slider.addEventListener('change', sliderChanged);
                 }
-           // }
+
+                if (currentIndex == 10){
+                    const textLabel = L.marker(center, {
+                          icon: L.divIcon({
+                              className: 'polygon-text-labels',
+                              html: 'Click me!',
+                              opacity: 0.7
+                          }),
+                          zIndexOffset: 1000
+                    });
+                    textLabel.addTo(map);
+                    textLabel.on('click', clickTextLabel);
+
+                    function clickTextLabel(){
+                        hullPolygon.bindPopup(popup).openPopup();
+                        map.removeLayer(textLabel);
+                        map.setView(center, 13);
+                    }
+                }
+
 
             currentIndex++;
             step += stepIncrement;
@@ -336,21 +374,28 @@ async function getLayers(responseData, map, meteoData) {
 }
 
 export async function getForcastLayer(responseData, map, circles, meteoData) {
-    console.log("new forcast for rectangle selected")
+    console.log("new forcast for rectangle selected");
+    let notInOcean = true;
     for (const key in responseData) {
         const response = responseData[key];
         const meteo = meteoData[key];
         let firstCoordinate;
         for (const key in response) {
             const first = Object.values(response[key]);
-            firstCoordinate = Object.values(first['0']);
-            circles = addRedCircleToIcon(firstCoordinate[0], firstCoordinate[1], map);
+            if(first.length > 0) {
+                notInOcean = true;
+                firstCoordinate = Object.values(first['0']);
+                circles = addRedCircleToIcon(firstCoordinate[0], firstCoordinate[1], map);
+            }
+            else {notInOcean = false;}
             continue;
         }
-        await getLayers(response, map, meteo);
+        if(notInOcean) {
+            await getLayers(response, map, meteo);
+        }
     }
 
-    return circles;
+    return [circles, circleText];
 }
 
 

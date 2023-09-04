@@ -18,7 +18,6 @@ const modis_active = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modi
 const modis_backup = "/data/MODIS_C6_1_Europe_24h.kml";
 let effis_fires =  "";
 let map;
-let osm;
 let confidenceThreshhold = 90;
 let markers = [];
 let meteoDataAll = {};
@@ -63,13 +62,22 @@ function updateCircles(){
 }
 
 function getMap(){
-    osm = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    const osm = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 21,
         attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
     });
-    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 21,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    const Esri_WorldTopoMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+    });
+    const Esri_WorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+    });
+    const Esri_WorldStreetMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012'
+    });
+    const WaymarkedTrails_hiking = L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Map style: &copy; <a href="https://waymarkedtrails.org">waymarkedtrails.org</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
     });
 
     map = L.map('map', {
@@ -83,9 +91,14 @@ function getMap(){
 
      const baseMaps = {
         "Grey Map": osm,
-        "Open Street Map": osmLayer
+        "Esri Topo Map": Esri_WorldTopoMap,
+         "Esri Satellite Image": Esri_WorldImagery,
+         "Esri Street Map": Esri_WorldStreetMap
       };
-     L.control.layers(baseMaps).addTo(map);
+     var overlayMaps = {
+          "Hiking Trails": WaymarkedTrails_hiking
+        };
+     L.control.layers(baseMaps, overlayMaps).addTo(map);
 
     //Europa: [71.5, -33.0], [34.5, 44.0]
     const distLat = (71.5 - 34.5)/2;
@@ -144,7 +157,7 @@ function getMap(){
         {
             click: function(data)
             {
-                const jumpTarget = document.getElementById('map_section');
+                const jumpTarget = document.getElementById('data');
                 jumpTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
             },
         }
@@ -161,8 +174,8 @@ function iconsAtFireOrigin(title, location, confidence, dateAquired, time){
     });
     const marker = L.marker([location.longitude, location.latitude], {icon: customIcon}).addTo(map);
     const popupContent = title + "<br> <br> Date Acquired: " + dateAquired + "<br> Time Acquired: " + time +
-        " <br> <br> Confidence: " + confidence +
-        " <br> <br>  <br> <a style='color: black' href='https://www.earthdata.nasa.gov/learn/find-data/near-real-time/firms' target='_blank'> <b>More Info </b> </a> ";
+        " <br> <br> Confidence: " + confidence;
+       //+ " <br> <br>  <br> <a style='color: black' href='https://www.earthdata.nasa.gov/learn/find-data/near-real-time/firms' target='_blank'> <b>More Info </b> </a> ";
     marker.bindPopup(popupContent,  popupOptions);
    /* marker.on('click', function() {
             map.setView(marker.getLatLng(), 13);
@@ -351,6 +364,23 @@ async function getKMLLayer(kmlData, corner1, corner2){
         }).catch(error => console.error('Fehler beim Laden der KML-Datei:', error));
 }
 
+function checkForNewVisible(){
+    let isTabActive = true;
+
+    // Eventlistener für Sichtbarkeitswechsel
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        if (!isTabActive) {
+          isTabActive = true;
+          location.reload();
+        }
+      } else {
+        isTabActive = false;
+      }
+    });
+}
+
+//checkForNewVisible();
 console.log("starting map...")
 getMap();
 

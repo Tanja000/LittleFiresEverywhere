@@ -1,5 +1,7 @@
 
 let circles = [];
+let allPolygons = {};
+
 export let initialRadius = 100000;
 
 export const popupOptions = {
@@ -135,42 +137,24 @@ function calculateCircleCoordinates(center, radius, numPoints) {
     return circleCoordinates;
 }
 
-async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData){
-
+async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData, key){
     const distance = 0.001; // 100 Meter in Grad (angenommen)
     const points = calculatePerpendicularCoordinates(pathCoordinates, distance);
     const stepIncrement = 2;
     const hours = Object.keys(meteoData);
     let step = 2;
     let currentIndex = 0;
-    let timeStep = step;
+    let timeStep = 0;
     let startTime = startTime_;
     let date = date_;
     let newStartTime = startTime;
     const numPoints = 45;
-    let loopCounter = 0;
     let initialCircleRadius = 0.005;
+    let dates = [];
+    let times = [];
+    let polygonsList = [];
 
-    function animateConvexHull(hullPolygon) {
-        /*
-           if (step > points.length) {
-               //started die Animation von vorne
-
-               map.eachLayer(function(layer) {
-                  for (const polygon of polygons){
-                     map.removeLayer(polygon);
-                  }
-                  polygons = [];
-               });
-               currentIndex = 0;
-               step = 2;
-               startTime = startTime_;
-               date = date_;
-               timeStep = step;
-               loopCounter = 0;
-               initialRadius = 0;
-            }*/
-        let radius;
+    function animateConvexHull() {
         if (step < points.length) {
             const hullCoordinates = turf.featureCollection([]);
             newStartTime = startTime + timeStep;
@@ -203,54 +187,133 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
             }
             initialCircleRadius += 0.002;
 
-            const center = pathCoordinates[loopCounter];
+            const center = pathCoordinates[currentIndex];
             const circleCoordinates = calculateCircleCoordinates(center, radius, numPoints);
             for (const circleCoord of circleCoordinates) {
                 const newPoint = turf.point(circleCoord);
                 hullCoordinates.features.push(newPoint);
             }
 
-            loopCounter++;
-
             const convexHull = turf.convex(hullCoordinates);
             const hullPolygon = new L.polygon(convexHull.geometry.coordinates, {
-                color: '#8b0000',
+                color: 'orange',//'#8b0000',
                 fillOpacity: 0.5,
                 name: 'forcast-polygon'
             }).addTo(map);
 
-            convexHull.properties.windspeed = meteoData[hour]['windspeed'];
-            convexHull.properties.relativehumidity = meteoData[hour]['relativehumidity'];
-            convexHull.properties.evapotranspiration = meteoData[hour]['evapotranspiration'];
-            convexHull.properties.rain = meteoData[hour]['rain'];
-            convexHull.properties.soil_temperature_0cm = meteoData[hour]['soil_temperature_0cm'];
-            convexHull.properties.soil_moisture_0_1cm = meteoData[hour]['soil_moisture_0_1cm'];
-            convexHull.properties.temperature_2m = meteoData[hour]['temperature_2m'];
+            dates.push(date);
+            times.push(newStartTime);
 
-            const popupContent = "Date: " + date + "<br>Time: " + newStartTime + " UTC" +
-                "<br> <br><b>Maxium Values: </b>" +
-                "<br>Windspeed: " + convexHull.properties.windspeed + "km/h" +
-                "<br>Humidity: " + convexHull.properties.relativehumidity + "%" +
-                "<br>Evapotranspiration: " + convexHull.properties.evapotranspiration + "mm" +
-                "<br>Rain: " + convexHull.properties.rain + "mm" +
-                "<br>Soil Temperature: " + convexHull.properties.soil_temperature_0cm + "°C" +
-                "<br>Soil Moisture: " + convexHull.properties.soil_moisture_0_1cm + "m³/m³" +
-                "<br>Temperature: " + convexHull.properties.temperature_2m + "°C";
-            hullPolygon.bindPopup(popupContent, popupOptions);
+            polygonsList.push(hullPolygon);
+
+            //wegen Koordinaten rectangle Berechnung - ersten meteo Wert geglassen
+            if(currentIndex == 10) {
+                allPolygons[key] = polygonsList;
+
+                let idContent = "popupContent" + key;
+                let popupContent = "<div id=" + idContent + ">" +
+                    "<b>FIRE SPREAD FORECAST: </b><br><br> Date: " + date + "<br>Time: " + newStartTime + " UTC" +
+                    "<br>Windspeed: " + meteoData[hour]['windspeed'] + "km/h" +
+                    "<br>Humidity: " + meteoData[hour]['relativehumidity'] + "%" +
+                    "<br>Evapotranspiration: " + meteoData[hour]['evapotranspiration'] + "mm" +
+                    "<br>Rain: " + meteoData[hour]['rain'] + "mm" +
+                    "<br>Soil Temperature: " + meteoData[hour]['soil_temperature_0cm'] + "°C" +
+                    "<br>Soil Moisture: " + meteoData[hour]['soil_moisture_0_1cm'] + "m³/m³" +
+                    "<br>Temperature: " + meteoData[hour]['temperature_2m'] + "°C" + "</div>";
+
+                let idSlider = "time-slider" + key;
+                let idSliderText = "slider-value" + key;
+                let sliderContent = popupContent + '<br><div id="slider-container">' +
+                    '<input id=' + idSlider + ' type="range" min="0" max="10" step="1" value="0">' +
+                    '<div class="value-display" id='+ idSliderText + '>Date: ' + date +' Time: ' + newStartTime + ' UTC</div>' +
+                    '</div>';
+
+                 let popup = L.popup({
+                    offset: [75, -75],
+                    autoPan: true,
+                }).setContent(sliderContent);
+
+                hullPolygon.bindPopup(popup).openPopup();
+                hullPolygon.on('popupopen', function() {
+                    hullPolygon.setStyle({
+                                fillColor: 'orange',
+                                fillOpacity: 0.5,
+                                weight: 2,
+                                color: 'orange'
+                            });
+                    const slider = document.getElementById(idSlider);
+                    slider.addEventListener('change', sliderChanged);
+                 });
+                hullPolygon.on('popupclose', function() {
+                    for (const poly of allPolygons[key]){
+                         poly.setStyle({
+                                fillColor: 'darkred',
+                                fillOpacity: 0.5,
+                                weight: 1,
+                                color: 'darkred'
+                            });
+                     }
+                });
+
+                function sliderChanged() {
+
+
+                    const idSlider = "time-slider" + key;
+                    const slider = document.getElementById(idSlider);
+                    const sliderValue = slider.value;
+                    const indexMeteo = hours[11 - sliderValue];
+                    const idSliderText = "slider-value" + key;
+                    const sliderText = document.getElementById(idSliderText);
+                    sliderText.innerHTML = "Date: " + dates[10 - sliderValue] + " Time: " + times[10 - sliderValue] + " UTC";
+                    const popupContent =
+                    "<b>FIRE SPREAD FORECAST: </b><br><br> Date: " + dates[10 - sliderValue] + "<br>Time: " + times[10 - sliderValue] + " UTC" +
+                    "<br>Windspeed: " + meteoData[indexMeteo]['windspeed'] + "km/h" +
+                    "<br>Humidity: " + meteoData[indexMeteo]['relativehumidity'] + "%" +
+                    "<br>Evapotranspiration: " + meteoData[indexMeteo]['evapotranspiration']+ "mm" +
+                    "<br>Rain: " + meteoData[indexMeteo]['rain'] + "mm" +
+                    "<br>Soil Temperature: " + meteoData[indexMeteo]['soil_temperature_0cm'] + "°C" +
+                    "<br>Soil Moisture: " + meteoData[indexMeteo]['soil_moisture_0_1cm'] + "m³/m³" +
+                    "<br>Temperature: " + meteoData[indexMeteo]['temperature_2m'] + "°C";
+
+                     idContent = "popupContent" + key;
+                     document.getElementById(idContent).innerHTML = popupContent;
+                     const sliderPolygon = allPolygons[key][10 - sliderValue];
+                     for (const poly of allPolygons[key]){
+                         poly.setStyle({
+                                fillColor: 'darkred',
+                                fillOpacity: 0.5,
+                                weight: 1,
+                                color: 'darkred'
+                            });
+                     }
+                     sliderPolygon.setStyle({
+                                fillColor: 'orange',
+                                fillOpacity: 0.5,
+                                weight: 2,
+                                color: 'orange'
+                            });
+                     sliderPolygon.bringToFront();
+
+                }
+
+                const slider = document.getElementById(idSlider);
+                slider.addEventListener('change', sliderChanged);
+            }
+
             currentIndex++;
             step += stepIncrement;
             timeStep += stepIncrement;
             const animation = setTimeout(function () {
                 hullPolygon.setStyle({
-                    color: '#eb8334'
+                    color: 'darkred',//'#eb8334'
                 });
                 animateConvexHull(hullPolygon);
             }, 1000); // 1 Sekunde Verzögerung zwischen den Schritten
         }
-        }
-
-        animateConvexHull();
+    }
+    animateConvexHull();
 }
+
 
 
 async function getLayers(responseData, map, meteoData) {
@@ -266,7 +329,7 @@ async function getLayers(responseData, map, meteoData) {
         let startTime = Object.values(dictCoordinates)[0].startTime;
         let date = Object.values(dictCoordinates)[0].dateAquired;
         coordinatesArray = swapCoordinates(coordinatesArray);
-        await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key]);
+        await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key);
     }
 }
 

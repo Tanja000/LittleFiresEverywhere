@@ -207,7 +207,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
             polygonsList.push(hullPolygon);
 
             //wegen Koordinaten rectangle Berechnung - ersten meteo Wert geglassen
-            if(currentIndex == 10) {
+          //  if(currentIndex == 10) {
                 allPolygons[key] = polygonsList;
 
                 let idContent = "popupContent" + key;
@@ -223,8 +223,9 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
 
                 let idSlider = "time-slider" + key;
                 let idSliderText = "slider-value" + key;
+                let sliderValue = 10 - currentIndex;
                 let sliderContent = popupContent + '<br><div id="slider-container">' +
-                    '<input id=' + idSlider + ' type="range" min="0" max="10" step="1" value="0">' +
+                    '<input id=' + idSlider + ' type="range" min="0" max="10" step="1" value=' + sliderValue +'>' +
                     '<div class="value-display" id='+ idSliderText + '>Date: ' + date +' Time: ' + newStartTime + ' UTC</div>' +
                     '</div>';
 
@@ -233,7 +234,8 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                     autoPan: true,
                 }).setContent(sliderContent);
 
-                hullPolygon.bindPopup(popup).openPopup();
+              //  hullPolygon.bindPopup(popup).openPopup();
+                hullPolygon.bindPopup(popup);
                 hullPolygon.on('popupopen', function() {
                     hullPolygon.setStyle({
                                 fillColor: 'orange',
@@ -256,8 +258,6 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 });
 
                 function sliderChanged() {
-
-
                     const idSlider = "time-slider" + key;
                     const slider = document.getElementById(idSlider);
                     const sliderValue = slider.value;
@@ -297,8 +297,10 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 }
 
                 const slider = document.getElementById(idSlider);
-                slider.addEventListener('change', sliderChanged);
-            }
+                if(slider) {
+                    slider.addEventListener('change', sliderChanged);
+                }
+           // }
 
             currentIndex++;
             step += stepIncrement;

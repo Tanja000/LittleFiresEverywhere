@@ -3,6 +3,9 @@
 
 !!In das Verzeichnis "webapp" gehen!! </br></br>
 
+space login
+TOKEN: WDSHzpER_niqLFGCWtbA35wFQXtPGoZH3uj2BGVEL
+
 Lokal ausführen: </br>
     space link (Projekt ID: "a0euC4WYJu49" für" Projekt "Wildfires"</br>
     space open (Öffnet Details zum Projekt)</br>

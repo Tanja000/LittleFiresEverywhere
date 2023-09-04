@@ -3,6 +3,8 @@
 
 !!In das Verzeichnis "belt_and_road_delta/backend" gehen!! </br></br>
 
+space login
+TOKEN: WDSHzpER_niqLFGCWtbA35wFQXtPGoZH3uj2BGVEL
 
 Lokal ausführen: </br>
     space link (ProjektID: "a0ntysSbfA7x" für das Projekt "WildFireBackend") </br>

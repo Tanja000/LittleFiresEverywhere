@@ -5,10 +5,7 @@ import json
 from pydantic import BaseModel
 import math
 from datetime import datetime, timedelta
-import geopandas as gpd
-from shapely.geometry import Point
 
-#https://geodata.lib.utexas.edu/catalog/stanford-mq785tr7173
 
 api_url = "https://api.open-meteo.com/v1/forecast"
 
@@ -33,37 +30,6 @@ class ActionPayload(BaseModel):
     action: str
     value: int
     url: str
-
-
-def checkCoordinatesForWaterArea(lon, lat):
-    ocean_shapefile = gpd.read_file('data/ne_110m_ocean/ne_110m_ocean.shp')
-    lake_europe_shapfefile = gpd.read_file('data/ne_10m_lakes_europe/ne_10m_lakes_europe.shp')
-    river_europe_shapfefile = gpd.read_file('data/ne_10m_rivers_europe/ne_10m_rivers_europe.shp')
-
-    point = Point(lon, lat)
-    is_in_water = False
-
-    for index, row in ocean_shapefile.iterrows():
-        if point.within(row['geometry']):
-            is_in_water = True
-            break
-    for index, row in lake_europe_shapfefile.iterrows():
-        if point.within(row['geometry']):
-            is_in_water = True
-            break
-
-    for index, row in river_europe_shapfefile.iterrows():
-        if point.within(row['geometry']):
-            is_in_water = True
-            break
-
-    #if is_in_water:
-    #    print(f"Die Koordinate ({lat}, {lon}) befindet sich im Ozean.")
-    #else:
-    #    print(f"Die Koordinate ({lat}, {lon}) befindet sich nicht im Ozean.")
-
-    return is_in_water
-
 
 
 # https://open-meteo.com/ resolution 1km:
@@ -104,7 +70,7 @@ def calculate_new_coordinates(lat, lon, meteo_data):
     # evapotranspiration: hohe werte -> Verringerung des Feuchtigkeitsgehalts im Boden
 
     R = 6371000  # Durchschnittlicher Erdradius in Metern
-    direction_rad = math.radians(direction_degrees)
+    direction_rad = math.radians(direction_degrees - 180)
     # pro 2 Stunden berechnet km/h -> km/2h
     distance_m = speed_kmh * 2 * 1000  # Distanz = Geschwindigkeit * Zeit / in Meter umgerechenet
     distance_m = distance_m * 0.5 #Annahme: Feuer breitet sich nicht mit Windgeschwindigkeit aus
@@ -156,19 +122,30 @@ def get_meteo_data(lat, lng, date, hour_no):
         lng) + "&start_date=" + date_start + \
                     "&end_date=" + date_end + "&hourly=windspeed_10m&forecast_days=2&hourly=winddirection_10m&hourly=relativehumidity_2m&hourly=temperature_2m" \
                                               "&hourly=evapotranspiration&hourly=rain&hourly=soil_temperature_0cm&hourly=soil_moisture_0_1cm"
-    response = urllib.request.urlopen(url_windspeed).read()
-    response = json.loads(response)
 
-    data_dict = {}
-    data_dict['windspeed'] = response["hourly"]["windspeed_10m"][hour_no]
-    data_dict['winddirection'] = response["hourly"]["winddirection_10m"][hour_no]
-    data_dict['relativehumidity'] = response["hourly"]["relativehumidity_2m"][hour_no]
-    data_dict['evapotranspiration'] = response["hourly"]["evapotranspiration"][hour_no]
-    data_dict['rain'] = response["hourly"]["rain"][hour_no]
-    data_dict['soil_temperature_0cm'] = response["hourly"]["soil_temperature_0cm"][hour_no]
-    data_dict['soil_moisture_0_1cm'] = response["hourly"]["soil_moisture_0_1cm"][hour_no]
-    data_dict['temperature_2m'] = response["hourly"]["temperature_2m"][hour_no]
-    return data_dict
+    #print(url_windspeed)
+    #print(str(lat))
+    #print(str(lng))
+    try:
+        response = urllib.request.urlopen(url_windspeed).read()
+        response = json.loads(response)
+        data_dict = {}
+        data_dict['windspeed'] = response["hourly"]["windspeed_10m"][hour_no]
+        data_dict['winddirection'] = response["hourly"]["winddirection_10m"][hour_no]
+        data_dict['relativehumidity'] = response["hourly"]["relativehumidity_2m"][hour_no]
+        data_dict['evapotranspiration'] = response["hourly"]["evapotranspiration"][hour_no]
+        data_dict['rain'] = response["hourly"]["rain"][hour_no]
+        data_dict['soil_temperature_0cm'] = response["hourly"]["soil_temperature_0cm"][hour_no]
+        data_dict['soil_moisture_0_1cm'] = response["hourly"]["soil_moisture_0_1cm"][hour_no]
+        data_dict['temperature_2m'] = response["hourly"]["temperature_2m"][hour_no]
+        return data_dict
+    except urllib.error.URLError as e:
+        print("Fehler beim Öffnen der URL:", e)
+        return {}
+    except Exception as ex:
+        print("Ein unerwarteter Fehler ist aufgetreten:", ex)
+        return {}
+
 
 
 def round_to_next_hour(time_str):
@@ -203,13 +180,14 @@ def get_new_coordinate(lat, lng, date, time_str):
     for hour_no in range(time, time + 23, 2):
         if not noNewValues:
             meteo_data_hour[hour_no] = get_meteo_data(lat, lng, date, hour_no)
+            if not meteo_data_hour[hour_no]:
+                return day, meteo_data_hour
             meteo_data = meteo_data_hour[hour_no]
         else:
             meteo_data_hour[hour_no] = meteo_data_hour[hour_no - 2]
+            if not meteo_data_hour[hour_no]:
+                return day, meteo_data_hour
         new_lat, new_lng = calculate_new_coordinates(lat, lng, meteo_data)
-        is_in_ocean = checkCoordinatesForWaterArea(new_lat, new_lng)
-        if is_in_ocean:
-            return day, meteo_data_hour
         distance = haversine_distance(lat, lng, new_lat, new_lng)
         lat = new_lat
         lng = new_lng
@@ -233,7 +211,7 @@ async def receive_data(coordinates: dict):
         date = value["dateAquired"]
         time = value["time"]
         # confidence = value["confidence"]
-        response_coordinates, meteo = get_new_coordinate(latitude, longitude, date, time)
+        response_coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
         meteo_dict[key] = meteo
         response_dict[key] = response_coordinates
     return {"coordinates": response_dict, "meteo_data": meteo_dict}

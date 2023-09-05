@@ -1,6 +1,6 @@
-import {getForcastLayer, createWheelWaiting, deleteWheelWaiting, popupOptions, initialRadius} from "./forcast.js";
+import {getForcastLayer, createWheelWaiting, deleteWheelWaiting, handIcon,  popupOptions, initialRadius} from "./forcast.js";
 import {parseTime, getStartAndEndDate, parseDate, parseConfidence, parseCoordinates, getRectangleData,
-    fetchEffiKMLContent, fetchKMLContent, minimizeDictionary, parseCDATA, responseDataManual} from "./present_helper.js";
+    fetchEffiKMLContent, fetchKMLContent, parseCDATA, responseDataManual} from "./present_helper.js";
 
 //////////////////////////////////////////////////////////////////
 /*change here for local application or deployment*/
@@ -14,8 +14,10 @@ const weatherApi = true;
 
 
 
-const modis_active = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Europe_24h.kml";
-const modis_backup = "/data/MODIS_C6_1_Europe_24h.kml";
+//const modis_active_Europe = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Europe_24h.kml";
+//const modis_backup_Europe = "/data/MODIS_C6_1_Europe_24h.kml";
+const modis_active_World = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Global_24h.kml";
+const modis_backup_World= "/data/MODIS_C6_1_Global_24h.kml";
 let effis_fires =  "";
 let map;
 let confidenceThreshhold = 90;
@@ -43,7 +45,7 @@ function updateCircles(){
           circle.setRadius(adjustedRadius);
    }
 
-   const minZoomToDelete = 11;
+   const minZoomToDelete = 10;
     if (circles) {
         if (zoomLevel >= minZoomToDelete) {
             for (let i = 0; i < circles.length; i++) {
@@ -64,7 +66,7 @@ function updateCircles(){
     }
 }
 
-function getMap(){
+async function getMap() {
     const osm = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 21,
         attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
@@ -83,21 +85,15 @@ function getMap(){
         attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Map style: &copy; <a href="https://waymarkedtrails.org">waymarkedtrails.org</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
     });
 
-    const wmsUrlRiver = 'https://geowebservices.stanford.edu/geoserver/wms';
-    const wmsLayerNameRiver = 'druid:mq785tr7173';
-    const wmsLayerRiver = L.tileLayer.wms(wmsUrlRiver, {
-        layers: wmsLayerNameRiver,
-        format: 'image/png',
-        transparent: true
-    });
 
-    const wmsUrlLakes = 'https://geowebservices.stanford.edu/geoserver/wms';
-    const wmsLayerNameLakes  = 'druid:hx872sp6848';
-    const wmsLayerLakes  = L.tileLayer.wms(wmsUrlLakes, {
-        layers: wmsLayerNameLakes ,
-        format: 'image/png',
-        transparent: true
-    });
+
+    /*    const wmsUrlLakes = 'https://geowebservices.stanford.edu/geoserver/wms';
+       const wmsLayerNameLakes  = 'druid:hx872sp6848';
+       const wmsLayerLakes  = L.tileLayer.wms(wmsUrlLakes, {
+           layers: wmsLayerNameLakes ,
+           format: 'image/png',
+           transparent: true
+       });*/
 
     map = L.map('map', {
         center: originalCenter,
@@ -108,97 +104,103 @@ function getMap(){
     osm.addTo(map);
     map.on('zoom', updateCircles);
 
-     const baseMaps = {
+    const baseMaps = {
         "Grey Map": osm,
         "Esri Topo Map": Esri_WorldTopoMap,
-         "Esri Satellite Image": Esri_WorldImagery,
-         "Esri Street Map": Esri_WorldStreetMap
-      };
-     var overlayMaps = {
-          "Hiking Trails": WaymarkedTrails_hiking,
-          "Rivers": wmsLayerRiver,
-          "Lakes": wmsLayerLakes
-        };
-     L.control.layers(baseMaps, overlayMaps).addTo(map);
+        "Esri Satellite Image": Esri_WorldImagery,
+        "Esri Street Map": Esri_WorldStreetMap
+    };
+    var overlayMaps = {
+        "Hiking Trails": WaymarkedTrails_hiking,
+        //    "Rivers": wmsLayerRiver,
+        //    "Lakes": wmsLayerLakes
+    };
+    L.control.layers(baseMaps, overlayMaps).addTo(map);
 
-    //Europa: [71.5, -33.0], [34.5, 44.0]
-    const distLat = (71.5 - 34.5)/2;
-    const distLng = (44.0 + 33.0)/2;
+    const distLat = (71.5 - 34.5) / 2;
+    const distLng = (44.0 + 33.0) / 2;
     const rectangles = [
-       // {bounds: [[71.5 - distLat, -33.0], [34.5, 44.0 - distLng]]},
+        //Europa
         {bounds: [[71.5 - distLat, -13], [34.5, 44.0 - distLng]]},
-
         {bounds: [[71.5, -33.0 + distLng], [34.5 + distLat, 44.0]]},
         {bounds: [[68.5, -26], [34.5 + distLat, 44.0 - distLng]]},
-       // {bounds: [[71.5 - distLat, -33.0 + distLng], [34.5, 44.0]]},
         {bounds: [[71.5 - distLat, distLng - 15], [34.5, 44.0]]},
-     //   {bounds: [[71.5 - distLat, -33.0 + distLng], [34.5, distLng - 15]]},
         {bounds: [[71.5 - distLat - 7, -33.0 + distLng], [34.5, distLng - 15]]},
         {bounds: [[71.5 - distLat, -33.0 + distLng], [64.5 - distLat, distLng - 15]]},
+        //America
+        {bounds: [[61.89, -138.38], [42.47, -95.14]]},
+        {bounds: [[61.89, -95.14], [42.47, -52.07]]},
+        {bounds: [[42.47, -138.38], [23.93, -95.14]]},
+        {bounds: [[42.47, -95.14], [23.93, -70.07]]},
     ];
 
-      rectangles.forEach(function(rectangleData) {
-          const rectangle = L.rectangle(rectangleData.bounds, {color: 'darkred', weight: 2}).addTo(map);
-          const center = L.latLng(
-                (rectangleData.bounds[0][0] + rectangleData.bounds[1][0]) / 2,
-                (rectangleData.bounds[0][1] + rectangleData.bounds[1][1]) / 2
-            );
-          const textLabel = L.marker([center.lat, center.lng], {
-              icon: L.divIcon({
-                  className: 'text-labels',
-                  html: 'Click me!',
-                  opacity: 0.7
-              }),
-              zIndexOffset: 1000
-          });
-          textLabel.addTo(map);
+    rectangles.forEach(function (rectangleData) {
+        const rectangle = L.rectangle(rectangleData.bounds, {color: 'darkred', weight: 2}).addTo(map);
+        const center = L.latLng(
+            (rectangleData.bounds[0][0] + rectangleData.bounds[1][0]) / 2,
+            (rectangleData.bounds[0][1] + rectangleData.bounds[1][1]) / 2
+        );
 
-          async function startClick(){
-              const bounds = rectangle.getBounds();
-              let corner1 = bounds.getSouthWest();
-              let corner2 = bounds.getNorthEast();
+        const textLabel = L.marker([center.lat, center.lng], {
+            icon: handIcon,
+            zIndexOffset: 1000
+        }).addTo(map);
+        textLabel.bindTooltip('Click me!', {
+            permanent: false,
+            direction: 'top',
+            className: 'text-labels'
+        });
 
-              map.removeLayer(rectangle);
-              map.removeLayer(textLabel);
 
-              if (NASAData) {
-                  getKMLLayer(modis_active, corner1, corner2);
-              } else {
-                  getKMLLayer(modis_backup, corner1, corner2);
-              }
-          }
-          textLabel.on('click', startClick);
-          rectangle.on('click', startClick);
-      });
+        async function startClick() {
+            const bounds = rectangle.getBounds();
+            let corner1 = bounds.getSouthWest();
+            let corner2 = bounds.getNorthEast();
 
-    L.control.custom({
-        position: 'topright',
-        content : '<button type="button" class="btn-zoomout">'+
-                  '    <p>ZOOM</p>'+
-                  '</button>',
-        events:
-        {
-            click: function(data)
-            {
-                map.setView(originalCenter, originalZoom);
-            },
+            map.removeLayer(rectangle);
+            map.removeLayer(textLabel);
+
+            if (NASAData) {
+                getKMLLayer(modis_active_World, corner1, corner2);
+            } else {
+                getKMLLayer(modis_backup_World, corner1, corner2);
+            }
         }
-    }).addTo(map);
 
-    L.control.custom({
-        position: 'topright',
-        content : '<button type="button" class="btn-zoomout">'+
-                  '    <p>LEAVE</p>'+
-                  '</button>',
-        events:
-        {
-            click: function(data)
-            {
-                const jumpTarget = document.getElementById('data');
-                jumpTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        textLabel.on('click', startClick);
+        rectangle.on('click', startClick);
+    });
+
+      L.control.custom({
+            position: 'bottomright',
+            content: '<button id="custom-button"><img src="./icons/zoom_out.png" alt="Zoom out"></button>',
+            classes: 'custom-button-container',
+            style: {
+                width: '40px',
+                height: '40px'
             },
-        }
-    }).addTo(map);
+            events: {
+                click: () => {
+                    map.setView(originalCenter, originalZoom);
+                }
+            }
+        }).addTo(map);
+
+      L.control.custom({
+            position: 'bottomright',
+            content: '<button id="custom-button"><img src="./icons/leave.png" alt="Leave"></button>',
+            classes: 'custom-button-container',
+            style: {
+                width: '40px',
+                height: '40px'
+            },
+            events: {
+                click: () => {
+                    const jumpTarget = document.getElementById('data');
+                    jumpTarget.scrollIntoView({behavior: 'smooth', block: 'start'});
+                }
+            }
+        }).addTo(map);
 }
 
 
@@ -342,7 +344,7 @@ async function catchMODISArchiveData(kmlData, corner1, corner2) {
     let parsedCoordinates = {};
     let parsedValues = {};
     try {
-        kmlData = await fetchKMLContent(modis_backup);
+        kmlData = await fetchKMLContent(modis_backup_Europe);
         [parsedValues, parsedCoordinates] = processKMLData(kmlData, corner1, corner2);
     } catch (error) {
         console.error(error);
@@ -352,16 +354,34 @@ async function catchMODISArchiveData(kmlData, corner1, corner2) {
 }
 
 async function loadForcastInBackground(parsedValues, parsedCoordinates) {
-    const origParsedCoordinates = parsedCoordinates;
-    let noEnd = 4;
-
-    for (let noStart = 0; noStart < Object.keys(origParsedCoordinates).length; noStart += 4){
-        console.log("new rectangle");
-        parsedCoordinates = minimizeDictionary(origParsedCoordinates, noStart, noEnd);
+    const coordinatesLength = Object.keys(parsedCoordinates).length;
+    console.log(coordinatesLength);
+    if ( coordinatesLength <= 4){
         await processAndMapData(parsedValues, parsedCoordinates);
-        noEnd += 4;
+        return;
     }
 
+    let tempDict = {};
+    let count = 0;
+    let entireCount = 0;
+
+    for (const key in parsedCoordinates) {
+        tempDict[key] = parsedCoordinates[key];
+        count++;
+
+        if (count === 4 || coordinatesLength === count) {
+            await processAndMapData(parsedValues, tempDict);
+            tempDict = {};
+            count = 0;
+        }
+
+        if (entireCount === coordinatesLength - 1 && count !== 0){
+            await processAndMapData(parsedValues, tempDict);
+            return;
+        }
+        entireCount++;
+
+  }
 }
 
 

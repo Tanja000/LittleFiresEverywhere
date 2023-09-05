@@ -139,26 +139,20 @@ img { max-width: 100%; }
 
 
 .leaflet-control-layers label {
-      font-size: 14px !important;
+      font-size: 12px !important;
 }
 
 .text-labels {
   position: relative;
   font-weight: 700;
   color: whitesmoke;
-  font-size: 14px;
-  cursor: pointer;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  padding: 5px;
+  border-radius: 5px;
 
 }
-.polygon-text-labels {
-  position: relative;
-  font-size: 14px;
-  font-weight: 900;
-  color: orange;
-  cursor: pointer;
-     -webkit-text-stroke: 1px darkred; /* Farbe und Breite des Randes */
-  text-stroke: 1px darkred; /* Farbe und Breite des Randes */
-}
+
 
 .btn-zoomout {
   background-color: darkred;

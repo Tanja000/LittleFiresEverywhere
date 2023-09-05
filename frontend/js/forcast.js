@@ -3,11 +3,18 @@ let circles = [];
 let allPolygons = {};
 let circleText = [];
 
+
 export let initialRadius = 100000;
 
 export const popupOptions = {
             'maxWidth': '500',
             'className': 'another-popup'};
+
+export const handIcon = L.icon({
+            iconUrl: './icons/click_finger.png',
+            iconSize: [24, 24],
+            iconAnchor: [0, 0]
+});
 
 export function deleteWheelWaiting(){
     console.log("delete wheel")
@@ -48,8 +55,8 @@ function circleExistsAtCenter(center, circles) {
 }
 
 function addRedCircleToIcon(latitude, longitude, map){
-    const center = L.latLng(longitude, latitude);
-    const redCircle = L.circle([longitude, latitude], {
+    const center = L.latLng(latitude, longitude);
+    const redCircle = L.circle([latitude, longitude], {
                 color: 'darkred',
                 fillColor: '#f03',
                 fillOpacity: 0.0,
@@ -59,14 +66,16 @@ function addRedCircleToIcon(latitude, longitude, map){
         });
 
     const textLabel = L.marker(center, {
-        icon: L.divIcon({
-            className: 'polygon-text-labels',
-            html: 'Click me!',
-            opacity: 0.7
-        }),
-        zIndexOffset: 1000
-    });
-    textLabel.addTo(map);
+            icon: handIcon,
+            zIndexOffset: 1000
+        }).addTo(map);
+        textLabel.bindTooltip('Click me!', {
+            permanent: false,
+            direction: 'top',
+            className: 'text-labels'
+        });
+
+
     textLabel.on('click', clickTextLabel);
 
     function clickTextLabel(){
@@ -157,6 +166,12 @@ function calculateCircleCoordinates(center, radius, numPoints) {
     return circleCoordinates;
 }
 
+/*async function fetchMapAsync() {
+  const response = await fetch('https://unpkg.com/@geo-maps/earth-seas-10m/map.geo.json');
+  const data = await response.json();
+  return data;
+}*/
+
 async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData, key){
     const distance = 0.001; // 100 Meter in Grad (angenommen)
     const points = calculatePerpendicularCoordinates(pathCoordinates, distance);
@@ -173,10 +188,12 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
     let dates = [];
     let times = [];
     let polygonsList = [];
+    let textLabel;
 
-    function animateConvexHull() {
+    async function animateConvexHull() {
         if (step < points.length) {
             const hullCoordinates = turf.featureCollection([]);
+            let textLabel;
             newStartTime = startTime + timeStep;
             if (newStartTime >= 24) {
                 newStartTime -= 24;
@@ -227,117 +244,119 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
             polygonsList.push(hullPolygon);
 
             //wegen Koordinaten rectangle Berechnung - ersten meteo Wert geglassen
-             allPolygons[key] = polygonsList;
+            allPolygons[key] = polygonsList;
 
-                let idContent = "popupContent" + key;
-                let popupContent = "<div id=" + idContent + ">" +
-                    "<b>FIRE SPREAD FORECAST: </b><br><br> Date: " + date + "<br>Time: " + newStartTime + " UTC" +
-                    "<br>Windspeed: " + meteoData[hour]['windspeed'] + "km/h" +
-                    "<br>Humidity: " + meteoData[hour]['relativehumidity'] + "%" +
-                    "<br>Evapotranspiration: " + meteoData[hour]['evapotranspiration'] + "mm" +
-                    "<br>Rain: " + meteoData[hour]['rain'] + "mm" +
-                    "<br>Soil Temperature: " + meteoData[hour]['soil_temperature_0cm'] + "°C" +
-                    "<br>Soil Moisture: " + meteoData[hour]['soil_moisture_0_1cm'] + "m³/m³" +
-                    "<br>Temperature: " + meteoData[hour]['temperature_2m'] + "°C" + "</div>";
+            let idContent = "popupContent" + key;
+            let popupContent = "<div id=" + idContent + ">" +
+                "<b>FIRE SPREAD FORECAST: </b><br><br> Date: " + date + "<br>Time: " + newStartTime + " UTC" +
+                "<br>Windspeed: " + meteoData[hour]['windspeed'] + "km/h" +
+                "<br>Humidity: " + meteoData[hour]['relativehumidity'] + "%" +
+                "<br>Evapotranspiration: " + meteoData[hour]['evapotranspiration'] + "mm" +
+                "<br>Rain: " + meteoData[hour]['rain'] + "mm" +
+                "<br>Soil Temperature: " + meteoData[hour]['soil_temperature_0cm'] + "°C" +
+                "<br>Soil Moisture: " + meteoData[hour]['soil_moisture_0_1cm'] + "m³/m³" +
+                "<br>Temperature: " + meteoData[hour]['temperature_2m'] + "°C" + "</div>";
 
-                let idSlider = "time-slider" + key;
-                let idSliderText = "slider-value" + key;
-                let sliderValue = 10 - currentIndex;
-                let sliderContent = popupContent + '<br><div id="slider-container">' +
-                    '<input id=' + idSlider + ' type="range" min="0" max="10" step="1" value=' + sliderValue +'>' +
-                    '<div class="value-display" id='+ idSliderText + '>Date: ' + date +' Time: ' + newStartTime + ' UTC</div>' +
-                    '</div>';
+            let idSlider = "time-slider" + key;
+            let idSliderText = "slider-value" + key;
+            let sliderValue = 10 - currentIndex;
+            let sliderContent = popupContent + '<br><div id="slider-container">' +
+                '<input id=' + idSlider + ' type="range" min="0" max="10" step="1" value=' + sliderValue + '>' +
+                '<div class="value-display" id=' + idSliderText + '>Date: ' + date + ' Time: ' + newStartTime + ' UTC</div>' +
+                '</div>';
 
-                 let popup = L.popup({
-                    offset: [75, -75],
-                    autoPan: true,
-                }).setContent(sliderContent);
+            let popup = L.popup({
+                offset: [75, -75],
+                autoPan: true,
+            }).setContent(sliderContent);
 
-              //  hullPolygon.bindPopup(popup).openPopup();
-                hullPolygon.bindPopup(popup);
-                hullPolygon.on('popupopen', function() {
-                    hullPolygon.setStyle({
-                                fillColor: 'orange',
-                                fillOpacity: 0.5,
-                                weight: 2,
-                                color: 'orange'
-                            });
-                    const slider = document.getElementById(idSlider);
-                    slider.addEventListener('change', sliderChanged);
-                 });
-                hullPolygon.on('popupclose', function() {
-                    for (const poly of allPolygons[key]){
-                         poly.setStyle({
-                                fillColor: 'darkred',
-                                fillOpacity: 0.5,
-                                weight: 1,
-                                color: 'darkred'
-                            });
-                     }
+            //  hullPolygon.bindPopup(popup).openPopup();
+            hullPolygon.bindPopup(popup);
+            hullPolygon.on('popupopen', function () {
+                hullPolygon.setStyle({
+                    fillColor: 'orange',
+                    fillOpacity: 0.5,
+                    weight: 2,
+                    color: 'orange'
                 });
+                const slider = document.getElementById(idSlider);
+                slider.addEventListener('change', sliderChanged);
+                map.removeLayer(textLabel);
+            });
+            hullPolygon.on('popupclose', function () {
+                for (const poly of allPolygons[key]) {
+                    poly.setStyle({
+                        fillColor: 'darkred',
+                        fillOpacity: 0.5,
+                        weight: 1,
+                        color: 'darkred'
+                    });
+                }
+            });
 
-                function sliderChanged() {
-                    const idSlider = "time-slider" + key;
-                    const slider = document.getElementById(idSlider);
-                    const sliderValue = slider.value;
-                    const indexMeteo = hours[11 - sliderValue];
-                    const idSliderText = "slider-value" + key;
-                    const sliderText = document.getElementById(idSliderText);
-                    sliderText.innerHTML = "Date: " + dates[10 - sliderValue] + " Time: " + times[10 - sliderValue] + " UTC";
-                    const popupContent =
+            function sliderChanged() {
+                const idSlider = "time-slider" + key;
+                const slider = document.getElementById(idSlider);
+                const sliderValue = slider.value;
+                const indexMeteo = hours[11 - sliderValue];
+                const idSliderText = "slider-value" + key;
+                const sliderText = document.getElementById(idSliderText);
+                sliderText.innerHTML = "Date: " + dates[10 - sliderValue] + " Time: " + times[10 - sliderValue] + " UTC";
+                const popupContent =
                     "<b>FIRE SPREAD FORECAST: </b><br><br> Date: " + dates[10 - sliderValue] + "<br>Time: " + times[10 - sliderValue] + " UTC" +
                     "<br>Windspeed: " + meteoData[indexMeteo]['windspeed'] + "km/h" +
                     "<br>Humidity: " + meteoData[indexMeteo]['relativehumidity'] + "%" +
-                    "<br>Evapotranspiration: " + meteoData[indexMeteo]['evapotranspiration']+ "mm" +
+                    "<br>Evapotranspiration: " + meteoData[indexMeteo]['evapotranspiration'] + "mm" +
                     "<br>Rain: " + meteoData[indexMeteo]['rain'] + "mm" +
                     "<br>Soil Temperature: " + meteoData[indexMeteo]['soil_temperature_0cm'] + "°C" +
                     "<br>Soil Moisture: " + meteoData[indexMeteo]['soil_moisture_0_1cm'] + "m³/m³" +
                     "<br>Temperature: " + meteoData[indexMeteo]['temperature_2m'] + "°C";
 
-                     idContent = "popupContent" + key;
-                     document.getElementById(idContent).innerHTML = popupContent;
-                     const sliderPolygon = allPolygons[key][10 - sliderValue];
-                     for (const poly of allPolygons[key]){
-                         poly.setStyle({
-                                fillColor: 'darkred',
-                                fillOpacity: 0.5,
-                                weight: 1,
-                                color: 'darkred'
-                            });
-                     }
-                     sliderPolygon.setStyle({
-                                fillColor: 'orange',
-                                fillOpacity: 0.5,
-                                weight: 2,
-                                color: 'orange'
-                            });
-                     sliderPolygon.bringToFront();
-
-                }
-
-                const slider = document.getElementById(idSlider);
-                if(slider) {
-                    slider.addEventListener('change', sliderChanged);
-                }
-
-                if (currentIndex == 10){
-                    const textLabel = L.marker(center, {
-                          icon: L.divIcon({
-                              className: 'polygon-text-labels',
-                              html: 'Click me!',
-                              opacity: 0.7
-                          }),
-                          zIndexOffset: 1000
+                idContent = "popupContent" + key;
+                document.getElementById(idContent).innerHTML = popupContent;
+                const sliderPolygon = allPolygons[key][10 - sliderValue];
+                for (const poly of allPolygons[key]) {
+                    poly.setStyle({
+                        fillColor: 'darkred',
+                        fillOpacity: 0.5,
+                        weight: 1,
+                        color: 'darkred'
                     });
-                    textLabel.addTo(map);
-                    textLabel.on('click', clickTextLabel);
-
-                    function clickTextLabel(){
-                        hullPolygon.bindPopup(popup).openPopup();
-                        map.removeLayer(textLabel);
-                        map.setView(center, 13);
-                    }
                 }
+                sliderPolygon.setStyle({
+                    fillColor: 'orange',
+                    fillOpacity: 0.5,
+                    weight: 2,
+                    color: 'orange'
+                });
+                sliderPolygon.bringToFront();
+
+            }
+
+            const slider = document.getElementById(idSlider);
+            if (slider) {
+                slider.addEventListener('change', sliderChanged);
+            }
+
+            if (currentIndex == 10) {
+                const textCenter =  L.latLng(center[0], center[1]);
+                textLabel = L.marker(textCenter, {
+                    icon: handIcon,
+                    zIndexOffset: 1000
+                }).addTo(map);
+                textLabel.bindTooltip('Click me!', {
+                    permanent: false,
+                    direction: 'top',
+                    className: 'text-labels'
+                });
+                textLabel.on('click', clickTextLabel);
+
+                function clickTextLabel() {
+                    hullPolygon.bindPopup(popup).openPopup();
+                    map.removeLayer(textLabel);
+                    map.setView(textCenter, 13);
+                }
+            }
 
 
             currentIndex++;
@@ -363,19 +382,21 @@ async function getLayers(responseData, map, meteoData) {
         for (const key in dictCoordinates) {
             if (dictCoordinates.hasOwnProperty(key)) {
                 const coordinate = dictCoordinates[key];
-                coordinatesArray.push([coordinate.latitude, coordinate.longitude, coordinate.dateAquired, coordinate.time]);
+                coordinatesArray.push([coordinate.latitude, coordinate.longitude, coordinate.dateAquired, coordinate.startTime]);
             }
         }
-        let startTime = Object.values(dictCoordinates)[0].startTime;
-        let date = Object.values(dictCoordinates)[0].dateAquired;
-        coordinatesArray = swapCoordinates(coordinatesArray);
-        await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key);
+
+        if(Object.values(dictCoordinates).length > 0) {
+            let startTime = Object.values(dictCoordinates)[0].startTime;
+            let date = Object.values(dictCoordinates)[0].dateAquired;
+           // coordinatesArray = swapCoordinates(coordinatesArray);
+            await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key);
+        }
     }
 }
 
 export async function getForcastLayer(responseData, map, circles, meteoData) {
     console.log("new forcast for rectangle selected");
-    let notInOcean = true;
     for (const key in responseData) {
         const response = responseData[key];
         const meteo = meteoData[key];
@@ -383,16 +404,12 @@ export async function getForcastLayer(responseData, map, circles, meteoData) {
         for (const key in response) {
             const first = Object.values(response[key]);
             if(first.length > 0) {
-                notInOcean = true;
                 firstCoordinate = Object.values(first['0']);
                 circles = addRedCircleToIcon(firstCoordinate[0], firstCoordinate[1], map);
             }
-            else {notInOcean = false;}
-            continue;
+
         }
-        if(notInOcean) {
-            await getLayers(response, map, meteo);
-        }
+        await getLayers(response, map, meteo);
     }
 
     return [circles, circleText];

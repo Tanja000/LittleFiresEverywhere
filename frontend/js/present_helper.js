@@ -97,17 +97,6 @@ export function getRectangleData(confidenceThreshhold, confidence, parsedValues,
     return parsedCoordinates
 }
 
-export function minimizeDictionary(dictionary,start, end) {
-  if (Object.keys(dictionary).length > end) {
-    const keys = Object.keys(dictionary).slice(start, end);
-    const minimizedDictionary = {};
-    for (const key of keys) {
-      minimizedDictionary[key] = dictionary[key];
-    }
-    return minimizedDictionary;
-  }
-  return dictionary;
-}
 
 export function parseCDATA(data){
     const substringToRemove1 = "To subscribe to fire email alerts, visit <a href='https://earthdata.nasa.gov/data/nrt-data/firms/email-alerts'>https://earthdata.nasa.gov/data/nrt-data/firms/email-alerts/</a> <br><br>&bull; <a href='https://earthdata.nasa.gov/data/nrt-data/disclaimer'>FIRMS Disclaimer</a><br><br>";

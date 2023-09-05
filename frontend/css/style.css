@@ -142,6 +142,21 @@ img { max-width: 100%; }
       font-size: 12px !important;
 }
 
+ .custom-cluster-icon {
+            background: transparent;
+            border: none;
+            text-align: center;
+        }
+
+.custom-cluster-icon img {
+            width: 50px;
+            height: 50px;
+        }
+.custom-cluster-icon2 img {
+            width: 25px;
+            height: 25px;
+        }
+
 .text-labels {
   position: relative;
   font-weight: 700;

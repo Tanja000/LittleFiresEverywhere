@@ -1,5 +1,4 @@
 
-let circles = [];
 let allPolygons = {};
 let circleText = [];
 
@@ -15,6 +14,48 @@ export const handIcon = L.icon({
             iconSize: [24, 24],
             iconAnchor: [0, 0]
 });
+
+const clickIcon = L.icon({
+            iconUrl: './icons/click.png',
+            iconSize: [20, 20],
+            iconAnchor: [0, 0]
+});
+
+const pointerIcon = L.icon({
+            iconUrl: './icons/pointer.png',
+            iconSize: [20, 20],
+            iconAnchor: [0, 0]
+});
+
+const clickClusterIcon = L.divIcon({
+            className: 'custom-cluster-icon2',
+            iconSize: [25, 25],
+            html: '<img src="./icons/click.png" alt="Cluster Icon" />'
+        });
+
+const pointerClusterIcon = L.divIcon({
+            className: 'custom-cluster-icon2',
+            iconSize: [25, 25],
+            html: '<img src="./icons/pointer.png" alt="Cluster Icon" />'
+        });
+
+const clickCluster = L.markerClusterGroup({
+            iconCreateFunction: (cluster) => {
+                return clickClusterIcon;
+            },
+			spiderfyOnMaxZoom: true,
+			showCoverageOnHover: false,
+			zoomToBoundsOnClick: true
+		});
+
+const pointerCluster = L.markerClusterGroup({
+            iconCreateFunction: (cluster) => {
+                return pointerClusterIcon;
+            },
+			spiderfyOnMaxZoom: true,
+			showCoverageOnHover: false,
+			zoomToBoundsOnClick: true
+		});
 
 export function deleteWheelWaiting(){
     console.log("delete wheel")
@@ -45,36 +86,20 @@ export function createWheelWaiting(map){
     }
 }
 
-function circleExistsAtCenter(center, circles) {
-    for (let i = 0; i < circles.length; i++) {
-        if (circles[i].getLatLng().equals(center)) {
-            return true;
-        }
-    }
-    return false;
-}
 
 function addRedCircleToIcon(latitude, longitude, map){
     const center = L.latLng(latitude, longitude);
-    const redCircle = L.circle([latitude, longitude], {
-                color: 'darkred',
-                fillColor: '#f03',
-                fillOpacity: 0.0,
-                radius: initialRadius,
-    }).on('click', function () {
-            map.setView(center, 13);
-        });
 
     const textLabel = L.marker(center, {
-            icon: handIcon,
+            icon: clickIcon,
             zIndexOffset: 1000
-        }).addTo(map);
+        }); //.addTo(map);
         textLabel.bindTooltip('Click me!', {
             permanent: false,
             direction: 'top',
             className: 'text-labels'
         });
-
+    clickCluster.addLayer(textLabel);
 
     textLabel.on('click', clickTextLabel);
 
@@ -85,24 +110,6 @@ function addRedCircleToIcon(latitude, longitude, map){
 
     circleText.push(textLabel);
 
-    if(circles.length > 0) {
-        const exist = circleExistsAtCenter(center, circles);
-        if (!exist) {
-            redCircle.addTo(map);
-            circles.push(redCircle);
-            return circles;
-        }
-    }
-    else if (circles.length == 0) {
-        redCircle.addTo(map);
-        circles.push(redCircle);
-        return circles;
-    }
-}
-
-
-function swapCoordinates(coordinates) {
-    return coordinates.map(coord => [coord[1], coord[0]]);
 }
 
 
@@ -341,14 +348,15 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
             if (currentIndex == 10) {
                 const textCenter =  L.latLng(center[0], center[1]);
                 textLabel = L.marker(textCenter, {
-                    icon: handIcon,
+                    icon: pointerIcon,
                     zIndexOffset: 1000
-                }).addTo(map);
+                });
                 textLabel.bindTooltip('Click me!', {
                     permanent: false,
                     direction: 'top',
                     className: 'text-labels'
                 });
+                pointerCluster.addLayer(textLabel);
                 textLabel.on('click', clickTextLabel);
 
                 function clickTextLabel() {
@@ -395,7 +403,7 @@ async function getLayers(responseData, map, meteoData) {
     }
 }
 
-export async function getForcastLayer(responseData, map, circles, meteoData) {
+export async function getForcastLayer(responseData, map, meteoData) {
     console.log("new forcast for rectangle selected");
     for (const key in responseData) {
         const response = responseData[key];
@@ -405,14 +413,16 @@ export async function getForcastLayer(responseData, map, circles, meteoData) {
             const first = Object.values(response[key]);
             if(first.length > 0) {
                 firstCoordinate = Object.values(first['0']);
-                circles = addRedCircleToIcon(firstCoordinate[0], firstCoordinate[1], map);
+                addRedCircleToIcon(firstCoordinate[0], firstCoordinate[1], map);
             }
 
         }
         await getLayers(response, map, meteo);
     }
+    map.addLayer(clickCluster);
+    map.addLayer(pointerCluster);
 
-    return [circles, circleText];
+    return clickCluster;
 }
 
 

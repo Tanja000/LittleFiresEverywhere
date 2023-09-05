@@ -4,18 +4,15 @@ import {parseTime, getStartAndEndDate, parseDate, parseConfidence, parseCoordina
 
 //////////////////////////////////////////////////////////////////
 /*change here for local application or deployment*/
-const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
-//const backendURL = "http://127.0.0.1:8000";
+//const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
+const backendURL = "http://127.0.0.1:8000";
 /*For deployment set to true!*/
 const EFfiData = true;
 const NASAData = true;
 const weatherApi = true;
 //////////////////////////////////////////////////////////////////
 
-
-
-//const modis_active_Europe = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Europe_24h.kml";
-//const modis_backup_Europe = "/data/MODIS_C6_1_Europe_24h.kml";
+const activeFireConfidenceThreshold = 65;
 const modis_active_World = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Global_24h.kml";
 const modis_backup_World= "/data/MODIS_C6_1_Global_24h.kml";
 let effis_fires =  "";
@@ -26,11 +23,25 @@ let meteoDataAll = {};
 let dataCounter = 0;
 let day_start;
 let day_end;
-const originalZoom = 4;
-const originalCenter = [57, 0];
-let circles = [];
-let circleText = [];
+const originalZoom = 3;
+const originalCenter = [23, 8];
+let clickCluster;
 let circlesRemoved = false;
+
+const customClusterIcon = L.divIcon({
+            className: 'custom-cluster-icon',
+            iconSize: [50, 50],
+            html: '<img src="./icons/fire.png" alt="Cluster Icon" />'
+        });
+
+const markersCluster = L.markerClusterGroup({
+            iconCreateFunction: (cluster) => {
+                return customClusterIcon;
+            },
+			spiderfyOnMaxZoom: true,
+			showCoverageOnHover: false,
+			zoomToBoundsOnClick: true
+		});
 
 function setEffiUrl(){
     [day_start, day_end] = getStartAndEndDate();
@@ -40,25 +51,14 @@ function setEffiUrl(){
 
 function updateCircles(){
    const zoomLevel = map.getZoom();
-   for (const circle of circles){
-          const adjustedRadius = initialRadius - (zoomLevel * 5000) ; // initialRadius / Math.pow(2, zoomLevel - 10); // Adjust as needed
-          circle.setRadius(adjustedRadius);
-   }
-
    const minZoomToDelete = 10;
-    if (circles) {
+    if (clickCluster) {
         if (zoomLevel >= minZoomToDelete) {
-            for (let i = 0; i < circles.length; i++) {
-                map.removeLayer(circles[i]);
-                map.removeLayer(circleText[i]);
-            }
+            map.removeLayer(clickCluster);
             circlesRemoved = true;
         } else if (zoomLevel < minZoomToDelete) {
             if (circlesRemoved) {
-                for (let i = 0; i < circles.length; i++) {
-                    circles[i].addTo(map);
-                    circleText[i].addTo(map);
-                }
+                clickCluster.addTo(map);
                 circlesRemoved = false;
             }
             map.closePopup();
@@ -67,10 +67,10 @@ function updateCircles(){
 }
 
 async function getMap() {
-    const osm = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+  /*  const osm = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 21,
         attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-    });
+    });*/
     const Esri_WorldTopoMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
     });
@@ -98,14 +98,22 @@ async function getMap() {
     map = L.map('map', {
         center: originalCenter,
         zoom: originalZoom,
-        layers: [osm]
+        layers: [Esri_WorldTopoMap]
     });
     map.setMinZoom(3);
-    osm.addTo(map);
+
+    const minLatLng = L.latLng(-90, -180);
+    const maxLatLng = L.latLng(90, 180);
+    const bounds = L.latLngBounds(minLatLng, maxLatLng);
+    map.setMaxBounds(bounds);
+    map.on('drag', () => {
+        map.panInsideBounds(bounds, { animate: false });
+    });
+
+    Esri_WorldTopoMap.addTo(map);
     map.on('zoom', updateCircles);
 
     const baseMaps = {
-        "Grey Map": osm,
         "Esri Topo Map": Esri_WorldTopoMap,
         "Esri Satellite Image": Esri_WorldImagery,
         "Esri Street Map": Esri_WorldStreetMap
@@ -117,21 +125,65 @@ async function getMap() {
     };
     L.control.layers(baseMaps, overlayMaps).addTo(map);
 
-    const distLat = (71.5 - 34.5) / 2;
-    const distLng = (44.0 + 33.0) / 2;
     const rectangles = [
         //Europa
-        {bounds: [[71.5 - distLat, -13], [34.5, 44.0 - distLng]]},
-        {bounds: [[71.5, -33.0 + distLng], [34.5 + distLat, 44.0]]},
-        {bounds: [[68.5, -26], [34.5 + distLat, 44.0 - distLng]]},
-        {bounds: [[71.5 - distLat, distLng - 15], [34.5, 44.0]]},
-        {bounds: [[71.5 - distLat - 7, -33.0 + distLng], [34.5, distLng - 15]]},
-        {bounds: [[71.5 - distLat, -33.0 + distLng], [64.5 - distLat, distLng - 15]]},
+        {bounds: [[72, -26], [60, 53]]},
+        {bounds: [[60, -15], [48, 20]]},
+        {bounds: [[48, -15], [35, 20]]},
+        {bounds: [[60, 20], [48, 53]]},
+        {bounds: [[48, 20], [35, 53]]},
         //America
-        {bounds: [[61.89, -138.38], [42.47, -95.14]]},
-        {bounds: [[61.89, -95.14], [42.47, -52.07]]},
-        {bounds: [[42.47, -138.38], [23.93, -95.14]]},
-        {bounds: [[42.47, -95.14], [23.93, -70.07]]},
+        {bounds: [[70, -170], [55.89, -138.38]]},
+        {bounds: [[70, -138.38], [55.89, -95.14]]},
+        {bounds: [[70, -95.14], [55.89, -52.07]]},
+        {bounds: [[55.89, -138.38], [44.47, -95.14]]},
+        {bounds: [[55.89, -95.14], [44.47, -52.07]]},
+        {bounds: [[44.47, -127.38], [30.93, -95.14]]},
+        {bounds: [[44.47, -95.14], [30.93, -70.07]]},
+        {bounds: [[30.93, -118.38], [10.93, -95.14]]},
+        {bounds: [[30.93, -95.14], [10.93, -60.07]]},
+        {bounds: [[10.93, -87.14], [0.93, -45.07]]},
+        {bounds: [[0.93, -83.14], [-10.93, -60.07]]},
+        {bounds: [[-10.93, -83.14], [-20.93, -60.07]]},
+        {bounds: [[0.93, -60.07], [-10.93, -30.07]]},
+        {bounds: [[-10.93, -60.07], [-20.93, -30.07]]},
+        {bounds: [[-20.93, -80.07], [-35.93, -60.07]]},
+        {bounds: [[-20.93, -60.07], [-35.93, -40.07]]},
+        {bounds: [[-35.93, -80.07], [-58.93, -50.07]]},
+        //Africa
+        {bounds: [[35, -20], [20, 20]]},
+        {bounds: [[35, 20], [20, 53]]},
+        {bounds: [[20, -20], [3, 0]]},
+        {bounds: [[20, 0], [3, 20]]},
+        {bounds: [[20, 20], [3, 37]]},
+        {bounds: [[20, 37], [3, 53]]},
+        {bounds: [[3, 5], [-7, 25]]},
+        {bounds: [[-7, 5], [-15, 25]]},
+        {bounds: [[3, 25], [-7, 53]]},
+        {bounds: [[-7, 25], [-15, 53]]},
+        {bounds: [[-15, 5], [-25, 25]]},
+        {bounds: [[-25, 5], [-37, 25]]},
+        {bounds: [[-15, 25], [-25, 53]]},
+        {bounds: [[-25, 25], [-37, 53]]},
+        //Euroasia
+        {bounds: [[75, 53], [60, 100]]},
+        {bounds: [[75, 100], [60, 150]]},
+        {bounds: [[75, 150], [60, 180]]},
+        {bounds: [[60, 53], [45, 100]]},
+        {bounds: [[60, 100], [45, 150]]},
+        {bounds: [[60, 150], [45, 180]]},
+        {bounds: [[45, 53], [18, 100]]},
+        {bounds: [[45, 100], [18, 150]]},
+        {bounds: [[18, 70], [0, 100]]},
+        {bounds: [[18, 100], [0, 130]]},
+        {bounds: [[0, 85], [-20, 125]]},
+        {bounds: [[0, 125], [-10, 140]]},
+        {bounds: [[-10, 125], [-20, 140]]},
+        {bounds: [[0, 140], [-20, 170]]},
+        {bounds: [[-20, 110], [-30, 135]]},
+        {bounds: [[-20, 135], [-30, 170]]},
+        {bounds: [[-30, 110], [-60, 140]]},
+        {bounds: [[-30, 140], [-60, 180]]},
     ];
 
     rectangles.forEach(function (rectangleData) {
@@ -171,9 +223,28 @@ async function getMap() {
         rectangle.on('click', startClick);
     });
 
+    L.control.custom({
+            position: 'bottomright',
+            content: '<button id="custom-button-leave"><img src="./icons/leave.png" alt="Leave"></button>',
+            classes: 'custom-button-container',
+            style: {
+                width: '40px',
+                height: '40px'
+            },
+            events: {
+                click: () => {
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    }
+                    const jumpTarget = document.getElementById('data');
+                    jumpTarget.scrollIntoView({behavior: 'smooth', block: 'start'});
+                }
+            }
+        }).addTo(map);
+
       L.control.custom({
             position: 'bottomright',
-            content: '<button id="custom-button"><img src="./icons/zoom_out.png" alt="Zoom out"></button>',
+            content: '<button id="custom-button-zoom"><img src="./icons/zoom_out.png" alt="Zoom out"></button>',
             classes: 'custom-button-container',
             style: {
                 width: '40px',
@@ -186,9 +257,10 @@ async function getMap() {
             }
         }).addTo(map);
 
+
       L.control.custom({
             position: 'bottomright',
-            content: '<button id="custom-button"><img src="./icons/leave.png" alt="Leave"></button>',
+            content: '<button id="custom-button-fullscreen"><img src="./icons/fullscreen.png" alt="Fullscreen"></button>',
             classes: 'custom-button-container',
             style: {
                 width: '40px',
@@ -196,11 +268,19 @@ async function getMap() {
             },
             events: {
                 click: () => {
-                    const jumpTarget = document.getElementById('data');
-                    jumpTarget.scrollIntoView({behavior: 'smooth', block: 'start'});
+                    const mapContainer = document.getElementById('map');
+
+                    if (!document.fullscreenElement) {
+                        mapContainer.requestFullscreen().catch(err => {
+                            alert(`Fullscreen error: ${err.message}`);
+                        });
+                    } else {
+                        document.exitFullscreen();
+                    }
                 }
             }
         }).addTo(map);
+
 }
 
 
@@ -211,14 +291,12 @@ function iconsAtFireOrigin(title, location, confidence, dateAquired, time){
         iconAnchor: [0, 0],
         popupAnchor: [0, -32]
     });
-    const marker = L.marker([location.longitude, location.latitude], {icon: customIcon}).addTo(map);
+    const marker = L.marker([location.longitude, location.latitude], {icon: customIcon});
     const popupContent = title + "<br> <br> Date Acquired: " + dateAquired + "<br> Time Acquired: " + time +
         " <br> <br> Confidence: " + confidence;
        //+ " <br> <br>  <br> <a style='color: black' href='https://www.earthdata.nasa.gov/learn/find-data/near-real-time/firms' target='_blank'> <b>More Info </b> </a> ";
     marker.bindPopup(popupContent,  popupOptions);
-   /* marker.on('click', function() {
-            map.setView(marker.getLatLng(), 13);
-    });*/
+    markersCluster.addLayer(marker)
 
     return marker;
 }
@@ -245,13 +323,15 @@ function processKMLData(kmlData, corner1, corner2){
                 }
               let coordinates = xmlDoc.getElementsByTagName("coordinates")[i].innerHTML;
               parsedValues = parseCoordinates(coordinates);
-              //Europa: [71.5, -33.0], [34.5, 44.0]
+
               if(parsedValues.longitude > corner1.lat && parsedValues.longitude < corner2.lat && parsedValues.latitude > corner1.lng && parsedValues.latitude < corner2.lng){
                   parsedCoordinates = getRectangleData(confidenceThreshhold, confidence, parsedValues, dateAquired, time, count, parsedCoordinates);
 
-                  let marker = iconsAtFireOrigin("MODIS FIRE", parsedValues, confidence, dateAquired, time);
-                  markers.push(marker);
-                  count++;
+                  if (confidence >= activeFireConfidenceThreshold) {
+                      let marker = iconsAtFireOrigin("MODIS FIRE", parsedValues, confidence, dateAquired, time);
+                      markers.push(marker);
+                      count++;
+                  }
               }
 
               let desc = xmlDoc.getElementsByTagName("description")[i].innerHTML;
@@ -335,7 +415,7 @@ async function processAndMapData(parsedValues, parsedCoordinates) {
     meteoData = responseData['meteo_data'];
     responseDataAll[dataCounter] = coordinatesData;
     meteoDataAll[dataCounter] = meteoData;
-    [circles, circleText] = await getForcastLayer(responseDataAll, map, circles, meteoDataAll);
+    clickCluster = await getForcastLayer(responseDataAll, map, meteoDataAll);
     dataCounter++;
     return parsedValues;
 }
@@ -414,6 +494,7 @@ async function getKMLLayer(kmlData, corner1, corner2){
                 confidenceThreshhold = 90;
             }
 
+            map.addLayer(markersCluster);
             console.log(backendURL + "/process_data");
             await loadForcastInBackground(parsedValues, parsedCoordinates);
             deleteWheelWaiting();

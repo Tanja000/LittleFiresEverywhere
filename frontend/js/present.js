@@ -19,7 +19,7 @@ const NASAData = true;
 const weatherApi = true;
 //////////////////////////////////////////////////////////////////
 
-const activeFireConfidenceThreshold = 65;
+const activeFireConfidenceThreshold = 50;
 const modis_active_World = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Global_24h.kml";
 const modis_backup_World= "/data/MODIS_C6_1_Global_24h.kml";
 let effis_fires =  "";
@@ -33,8 +33,10 @@ let day_end;
 const originalZoom = 3;
 const originalCenter = [23, 8];
 let clickCluster = L.markerClusterGroup();
+let burningAreas = L.markerClusterGroup();
 let circlesRemoved = false;
 let ControlLayer;
+let firesCoordinates = [];
 
 const customClusterIcon = L.divIcon({
             className: 'custom-cluster-icon',
@@ -334,6 +336,8 @@ function processKMLData(kmlData, corner1, corner2){
                   parsedCoordinates = getRectangleData(confidenceThreshhold, confidence, parsedValues, dateAquired, time, count, parsedCoordinates);
 
                   if (confidence >= activeFireConfidenceThreshold) {
+                      let fireCoord = [parsedValues['latitude'], parsedValues["longitude"]];
+                      firesCoordinates.push(fireCoord);
                       let marker = iconsAtFireOrigin("MODIS FIRE", parsedValues, confidence, dateAquired, time);
                       markers.push(marker);
                       count++;
@@ -422,7 +426,6 @@ async function processAndMapData(parsedValues, parsedCoordinates) {
     responseDataAll[dataCounter] = coordinatesData;
     meteoDataAll[dataCounter] = meteoData;
     clickCluster = await getForcastLayer(responseDataAll, map, meteoDataAll);
-    forcastPolygons.addLayer(clickCluster);
     dataCounter++;
     return parsedValues;
 }
@@ -442,7 +445,6 @@ async function catchMODISArchiveData(kmlData, corner1, corner2) {
 
 async function loadForcastInBackground(parsedValues, parsedCoordinates) {
     const coordinatesLength = Object.keys(parsedCoordinates).length;
-    console.log(coordinatesLength);
     if ( coordinatesLength <= 4){
         await processAndMapData(parsedValues, parsedCoordinates);
         return;
@@ -470,6 +472,56 @@ async function loadForcastInBackground(parsedValues, parsedCoordinates) {
 
   }
 }
+
+function calculateBurningAreas(){
+    const maxDistance = 10;
+
+    const featureGroups = {};
+    if (firesCoordinates.length > 4) {
+        const points = firesCoordinates.map(coord => turf.point(coord));
+        const featureCollection = turf.featureCollection(points);
+        const nearestPoints = turf.clustersDbscan(featureCollection , maxDistance);
+        nearestPoints.features.forEach(cluster => {
+            const prop = cluster.properties;
+            if ("cluster" in prop){
+                const groupProperty = prop.cluster;
+                if (!featureGroups[groupProperty]) {
+                    featureGroups[groupProperty] = [];
+                }
+                featureGroups[groupProperty].push(cluster);
+            }
+        });
+    }
+
+    for (let [key, value] of Object.entries(featureGroups)){
+        const polyCoordinates = [];
+        if (Object.keys(value).length >= 4 ) {
+            for (let [key1, value1] of Object.entries(value)) {
+                polyCoordinates.push([value1.geometry.coordinates[0], value1.geometry.coordinates[1]]);
+            }
+
+            let turfPoints = [];
+            for (const coord of polyCoordinates){
+                turfPoints.push(turf.point(coord))
+            }
+            const points = turf.featureCollection(turfPoints);
+            const boundingPolygon = turf.convex(points);
+            const bufferedPolygon = turf.buffer(boundingPolygon, 100, { units: 'meters' });
+
+            const leafletPolygon = L.geoJSON(bufferedPolygon, {
+                style: {
+                    "color": "#a049e3",
+                    "weight": 3,
+                    "opacity": 0.65,
+                    "smoothFactor": 0.5,
+                }
+            });
+
+            burningAreas.addLayer(leafletPolygon);
+        }
+    }
+}
+
 
 
 async function getKMLLayer(kmlData, corner1, corner2){
@@ -502,11 +554,28 @@ async function getKMLLayer(kmlData, corner1, corner2){
             }
 
             map.addLayer(markersCluster);
-            ControlLayer.addOverlay(markersCluster, 'Active Fires');
+
+            if (ControlLayer._layers.length <= 4) {
+                console.log("add fires")
+                ControlLayer.addOverlay(markersCluster, 'Active Fires');
+            }
+
+            calculateBurningAreas();
+            burningAreas.addTo(map);
+            console.log(burningAreas._leaflet_id);
+            if (ControlLayer._layers.length <= 5) {
+                console.log("add  areas")
+                ControlLayer.addOverlay(burningAreas, 'Burning Areas');
+            }
+
             console.log(backendURL + "/process_data");
             await loadForcastInBackground(parsedValues, parsedCoordinates);
             deleteWheelWaiting();
-           // ControlLayer.addOverlay(forcastPolygons, "Forecast");
+
+           /* if (ControlLayer._layers.length <= 6 ) {
+                console.log("add forecast");
+                ControlLayer.addOverlay(forcastPolygons, "Forecast");
+            }*/
             console.log("FINISHED");
         }).catch(error => console.error('Fehler beim Laden der KML-Datei:', error));
 }

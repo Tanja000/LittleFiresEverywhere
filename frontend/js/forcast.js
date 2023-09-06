@@ -357,12 +357,13 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 });
 
                 textLabel.on('click', clickTextLabel);
+               // textLabel.addTo(map);
                 arrowSymbolForcast.addLayer(textLabel);
-                forcastPolygons.addLayer(arrowSymbolForcast);
+                forcastPolygons.addLayer(textLabel);
 
                 function clickTextLabel() {
                     hullPolygon.bindPopup(popup).openPopup();
-                    map.removeLayer(textLabel);
+                   // map.removeLayer(textLabel);
                     map.setView(textCenter, 13);
                 }
             }
@@ -421,7 +422,8 @@ export async function getForcastLayer(responseData, map, meteoData) {
         await getLayers(response, map, meteo);
     }
     map.addLayer(clickCluster);
-    map.addLayer(arrowSymbolForcast);
+   // forcastPolygons.addLayer(clickCluster);
+    arrowSymbolForcast.addTo(map);
 
     return clickCluster;
 }

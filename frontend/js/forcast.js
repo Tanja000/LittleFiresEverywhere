@@ -1,9 +1,7 @@
 
 let allPolygons = {};
 let circleText = [];
-
-
-export let initialRadius = 100000;
+export let forcastPolygons = L.markerClusterGroup();
 
 export const popupOptions = {
             'maxWidth': '500',
@@ -48,7 +46,7 @@ const clickCluster = L.markerClusterGroup({
 			zoomToBoundsOnClick: true
 		});
 
-const pointerCluster = L.markerClusterGroup({
+export let  arrowSymbolForcast = L.markerClusterGroup({
             iconCreateFunction: (cluster) => {
                 return pointerClusterIcon;
             },
@@ -249,6 +247,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
             times.push(newStartTime);
 
             polygonsList.push(hullPolygon);
+            forcastPolygons.addLayer(hullPolygon);
 
             //wegen Koordinaten rectangle Berechnung - ersten meteo Wert geglassen
             allPolygons[key] = polygonsList;
@@ -356,8 +355,10 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                     direction: 'top',
                     className: 'text-labels'
                 });
-                pointerCluster.addLayer(textLabel);
+
                 textLabel.on('click', clickTextLabel);
+                arrowSymbolForcast.addLayer(textLabel);
+                forcastPolygons.addLayer(arrowSymbolForcast);
 
                 function clickTextLabel() {
                     hullPolygon.bindPopup(popup).openPopup();
@@ -420,7 +421,7 @@ export async function getForcastLayer(responseData, map, meteoData) {
         await getLayers(response, map, meteo);
     }
     map.addLayer(clickCluster);
-    map.addLayer(pointerCluster);
+    map.addLayer(arrowSymbolForcast);
 
     return clickCluster;
 }

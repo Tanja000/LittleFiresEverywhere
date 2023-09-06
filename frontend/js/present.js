@@ -1,11 +1,18 @@
-import {getForcastLayer, createWheelWaiting, deleteWheelWaiting, handIcon,  popupOptions, initialRadius} from "./forcast.js";
+import {
+    getForcastLayer,
+    createWheelWaiting,
+    deleteWheelWaiting,
+    handIcon,
+    popupOptions,
+    forcastPolygons,
+} from "./forcast.js";
 import {parseTime, getStartAndEndDate, parseDate, parseConfidence, parseCoordinates, getRectangleData,
     fetchEffiKMLContent, fetchKMLContent, parseCDATA, responseDataManual} from "./present_helper.js";
 
 //////////////////////////////////////////////////////////////////
 /*change here for local application or deployment*/
-//const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
-const backendURL = "http://127.0.0.1:8000";
+const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
+//const backendURL = "http://127.0.0.1:8000";
 /*For deployment set to true!*/
 const EFfiData = true;
 const NASAData = true;
@@ -25,8 +32,9 @@ let day_start;
 let day_end;
 const originalZoom = 3;
 const originalCenter = [23, 8];
-let clickCluster;
+let clickCluster = L.markerClusterGroup();
 let circlesRemoved = false;
+let ControlLayer;
 
 const customClusterIcon = L.divIcon({
             className: 'custom-cluster-icon',
@@ -85,8 +93,6 @@ async function getMap() {
         attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Map style: &copy; <a href="https://waymarkedtrails.org">waymarkedtrails.org</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
     });
 
-
-
     /*    const wmsUrlLakes = 'https://geowebservices.stanford.edu/geoserver/wms';
        const wmsLayerNameLakes  = 'druid:hx872sp6848';
        const wmsLayerLakes  = L.tileLayer.wms(wmsUrlLakes, {
@@ -123,7 +129,7 @@ async function getMap() {
         //    "Rivers": wmsLayerRiver,
         //    "Lakes": wmsLayerLakes
     };
-    L.control.layers(baseMaps, overlayMaps).addTo(map);
+    ControlLayer = L.control.layers(baseMaps, overlayMaps).addTo(map);
 
     const rectangles = [
         //Europa
@@ -296,7 +302,7 @@ function iconsAtFireOrigin(title, location, confidence, dateAquired, time){
         " <br> <br> Confidence: " + confidence;
        //+ " <br> <br>  <br> <a style='color: black' href='https://www.earthdata.nasa.gov/learn/find-data/near-real-time/firms' target='_blank'> <b>More Info </b> </a> ";
     marker.bindPopup(popupContent,  popupOptions);
-    markersCluster.addLayer(marker)
+    markersCluster.addLayer(marker);
 
     return marker;
 }
@@ -416,6 +422,7 @@ async function processAndMapData(parsedValues, parsedCoordinates) {
     responseDataAll[dataCounter] = coordinatesData;
     meteoDataAll[dataCounter] = meteoData;
     clickCluster = await getForcastLayer(responseDataAll, map, meteoDataAll);
+    forcastPolygons.addLayer(clickCluster);
     dataCounter++;
     return parsedValues;
 }
@@ -495,30 +502,15 @@ async function getKMLLayer(kmlData, corner1, corner2){
             }
 
             map.addLayer(markersCluster);
+            ControlLayer.addOverlay(markersCluster, 'Active Fires');
             console.log(backendURL + "/process_data");
             await loadForcastInBackground(parsedValues, parsedCoordinates);
             deleteWheelWaiting();
+           // ControlLayer.addOverlay(forcastPolygons, "Forecast");
             console.log("FINISHED");
         }).catch(error => console.error('Fehler beim Laden der KML-Datei:', error));
 }
 
-function checkForNewVisible(){
-    let isTabActive = true;
-
-    // Eventlistener für Sichtbarkeitswechsel
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        if (!isTabActive) {
-          isTabActive = true;
-          location.reload();
-        }
-      } else {
-        isTabActive = false;
-      }
-    });
-}
-
-//checkForNewVisible();
 console.log("starting map...")
 getMap();
 

@@ -1,6 +1,5 @@
 
 let allPolygons = {};
-let circleText = [];
 export let forcastPolygons = L.markerClusterGroup();
 
 export const popupOptions = {
@@ -13,11 +12,6 @@ export const handIcon = L.icon({
             iconAnchor: [0, 0]
 });
 
-const clickIcon = L.icon({
-            iconUrl: './icons/click.png',
-            iconSize: [20, 20],
-            iconAnchor: [0, 0]
-});
 
 const pointerIcon = L.icon({
             iconUrl: './icons/pointer.png',
@@ -25,11 +19,6 @@ const pointerIcon = L.icon({
             iconAnchor: [0, 0]
 });
 
-const clickClusterIcon = L.divIcon({
-            className: 'custom-cluster-icon2',
-            iconSize: [25, 25],
-            html: '<img src="./icons/click.png" alt="Cluster Icon" />'
-        });
 
 const pointerClusterIcon = L.divIcon({
             className: 'custom-cluster-icon2',
@@ -37,20 +26,12 @@ const pointerClusterIcon = L.divIcon({
             html: '<img src="./icons/pointer.png" alt="Cluster Icon" />'
         });
 
-const clickCluster = L.markerClusterGroup({
-            iconCreateFunction: (cluster) => {
-                return clickClusterIcon;
-            },
-			spiderfyOnMaxZoom: true,
-			showCoverageOnHover: false,
-			zoomToBoundsOnClick: true
-		});
 
-export let  arrowSymbolForcast = L.markerClusterGroup({
-            iconCreateFunction: (cluster) => {
+export let arrowSymbolForcast = L.markerClusterGroup({
+          /*  iconCreateFunction: (cluster) => {
                 return pointerClusterIcon;
-            },
-			spiderfyOnMaxZoom: true,
+            },*/
+			spiderfyOnMaxZoom: false,
 			showCoverageOnHover: false,
 			zoomToBoundsOnClick: true
 		});
@@ -84,31 +65,6 @@ export function createWheelWaiting(map){
     }
 }
 
-
-function addRedCircleToIcon(latitude, longitude, map){
-    const center = L.latLng(latitude, longitude);
-
-    const textLabel = L.marker(center, {
-            icon: clickIcon,
-            zIndexOffset: 1000
-        }); //.addTo(map);
-        textLabel.bindTooltip('Click me!', {
-            permanent: false,
-            direction: 'top',
-            className: 'text-labels'
-        });
-    clickCluster.addLayer(textLabel);
-
-    textLabel.on('click', clickTextLabel);
-
-    function clickTextLabel(){
-        map.removeLayer(textLabel);
-        map.setView(center, 13);
-    }
-
-    circleText.push(textLabel);
-
-}
 
 
 function calculatePerpendicularCoordinates(pathCoordinates, distance) {
@@ -177,7 +133,7 @@ function calculateCircleCoordinates(center, radius, numPoints) {
   return data;
 }*/
 
-async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData, key){
+async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData, key, ControlLayer, lastValue){
     const distance = 0.001; // 100 Meter in Grad (angenommen)
     const points = calculatePerpendicularCoordinates(pathCoordinates, distance);
     const stepIncrement = 2;
@@ -241,7 +197,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 color: 'orange',//'#8b0000',
                 fillOpacity: 0.5,
                 name: 'forcast-polygon'
-            }).addTo(map);
+            });
 
             dates.push(date);
             times.push(newStartTime);
@@ -357,13 +313,18 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 });
 
                 textLabel.on('click', clickTextLabel);
-               // textLabel.addTo(map);
                 arrowSymbolForcast.addLayer(textLabel);
                 forcastPolygons.addLayer(textLabel);
+                forcastPolygons.addTo(map);
+
+                if(lastValue){deleteWheelWaiting();}
+
+                if (ControlLayer._layers.length <= 6 && lastValue) {
+                    ControlLayer.addOverlay(forcastPolygons, "Forecast");
+                }
 
                 function clickTextLabel() {
                     hullPolygon.bindPopup(popup).openPopup();
-                   // map.removeLayer(textLabel);
                     map.setView(textCenter, 13);
                 }
             }
@@ -385,7 +346,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
 
 
 
-async function getLayers(responseData, map, meteoData) {
+async function getLayers(responseData, map, meteoData, ControlLayer, lastValue) {
     for (const key in responseData) {
         let coordinatesArray = [];
         let dictCoordinates = responseData[key];
@@ -400,12 +361,12 @@ async function getLayers(responseData, map, meteoData) {
             let startTime = Object.values(dictCoordinates)[0].startTime;
             let date = Object.values(dictCoordinates)[0].dateAquired;
            // coordinatesArray = swapCoordinates(coordinatesArray);
-            await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key);
+            await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key, ControlLayer, lastValue);
         }
     }
 }
 
-export async function getForcastLayer(responseData, map, meteoData) {
+export async function getForcastLayer(responseData, map, meteoData, ControlLayer, lastValue) {
     console.log("new forcast for rectangle selected");
     for (const key in responseData) {
         const response = responseData[key];
@@ -415,17 +376,15 @@ export async function getForcastLayer(responseData, map, meteoData) {
             const first = Object.values(response[key]);
             if(first.length > 0) {
                 firstCoordinate = Object.values(first['0']);
-                addRedCircleToIcon(firstCoordinate[0], firstCoordinate[1], map);
+              //  addRedCircleToIcon(firstCoordinate[0], firstCoordinate[1], map);
             }
 
         }
-        await getLayers(response, map, meteo);
+        await getLayers(response, map, meteo, ControlLayer, lastValue);
     }
-    map.addLayer(clickCluster);
-   // forcastPolygons.addLayer(clickCluster);
-    arrowSymbolForcast.addTo(map);
 
-    return clickCluster;
+
+    return;
 }
 
 

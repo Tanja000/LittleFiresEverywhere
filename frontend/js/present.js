@@ -1,10 +1,8 @@
 import {
     getForcastLayer,
     createWheelWaiting,
-    deleteWheelWaiting,
     handIcon,
     popupOptions,
-    forcastPolygons,
 } from "./forcast.js";
 import {parseTime, getStartAndEndDate, parseDate, parseConfidence, parseCoordinates, getRectangleData,
     fetchEffiKMLContent, fetchKMLContent, parseCDATA, responseDataManual} from "./present_helper.js";
@@ -32,7 +30,6 @@ let day_start;
 let day_end;
 const originalZoom = 3;
 const originalCenter = [23, 8];
-let clickCluster = L.markerClusterGroup();
 let burningAreas = L.markerClusterGroup();
 let circlesRemoved = false;
 let ControlLayer;
@@ -59,21 +56,12 @@ function setEffiUrl(){
 }
 
 
-function updateCircles(){
+function deletePopup(){
    const zoomLevel = map.getZoom();
    const minZoomToDelete = 10;
-    if (clickCluster) {
-        if (zoomLevel >= minZoomToDelete) {
-            map.removeLayer(clickCluster);
-            circlesRemoved = true;
-        } else if (zoomLevel < minZoomToDelete) {
-            if (circlesRemoved) {
-                clickCluster.addTo(map);
-                circlesRemoved = false;
-            }
-            map.closePopup();
-        }
-    }
+   if (zoomLevel < minZoomToDelete){
+       map.closePopup();
+   }
 }
 
 async function getMap() {
@@ -119,7 +107,7 @@ async function getMap() {
     });
 
     Esri_WorldTopoMap.addTo(map);
-    map.on('zoom', updateCircles);
+    map.on('zoom', deletePopup);
 
     const baseMaps = {
         "Esri Topo Map": Esri_WorldTopoMap,
@@ -391,7 +379,7 @@ function processEffiKMLData(kmlData, corner1, corner2) {
 }
 
 
-async function processAndMapData(parsedValues, parsedCoordinates) {
+async function processAndMapData(parsedValues, parsedCoordinates, lastValue) {
     let responseDataAll = {};
     let responseData = {};
     let coordinatesData = {};
@@ -425,7 +413,7 @@ async function processAndMapData(parsedValues, parsedCoordinates) {
     meteoData = responseData['meteo_data'];
     responseDataAll[dataCounter] = coordinatesData;
     meteoDataAll[dataCounter] = meteoData;
-    clickCluster = await getForcastLayer(responseDataAll, map, meteoDataAll);
+    await getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer, lastValue);
     dataCounter++;
     return parsedValues;
 }
@@ -445,8 +433,9 @@ async function catchMODISArchiveData(kmlData, corner1, corner2) {
 
 async function loadForcastInBackground(parsedValues, parsedCoordinates) {
     const coordinatesLength = Object.keys(parsedCoordinates).length;
+    let lastValues = true;
     if ( coordinatesLength <= 4){
-        await processAndMapData(parsedValues, parsedCoordinates);
+        await processAndMapData(parsedValues, parsedCoordinates, lastValues);
         return;
     }
 
@@ -459,13 +448,18 @@ async function loadForcastInBackground(parsedValues, parsedCoordinates) {
         count++;
 
         if (count === 4 || coordinatesLength === count) {
-            await processAndMapData(parsedValues, tempDict);
+            if(count >= coordinatesLength - 1){
+                lastValues = true;
+            }
+            else{lastValues = false;}
+            await processAndMapData(parsedValues, tempDict, lastValues);
             tempDict = {};
             count = 0;
         }
 
         if (entireCount === coordinatesLength - 1 && count !== 0){
-            await processAndMapData(parsedValues, tempDict);
+            lastValues = true;
+            await processAndMapData(parsedValues, tempDict, lastValues);
             return;
         }
         entireCount++;
@@ -556,26 +550,19 @@ async function getKMLLayer(kmlData, corner1, corner2){
             map.addLayer(markersCluster);
 
             if (ControlLayer._layers.length <= 4) {
-                console.log("add fires")
                 ControlLayer.addOverlay(markersCluster, 'Active Fires');
             }
 
             calculateBurningAreas();
             burningAreas.addTo(map);
-            console.log(burningAreas._leaflet_id);
+
             if (ControlLayer._layers.length <= 5) {
-                console.log("add  areas")
                 ControlLayer.addOverlay(burningAreas, 'Burning Areas');
             }
 
             console.log(backendURL + "/process_data");
             await loadForcastInBackground(parsedValues, parsedCoordinates);
-            deleteWheelWaiting();
 
-           /* if (ControlLayer._layers.length <= 6 ) {
-                console.log("add forecast");
-                ControlLayer.addOverlay(forcastPolygons, "Forecast");
-            }*/
             console.log("FINISHED");
         }).catch(error => console.error('Fehler beim Laden der KML-Datei:', error));
 }

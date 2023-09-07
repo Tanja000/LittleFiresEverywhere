@@ -14,17 +14,10 @@ export const handIcon = L.icon({
 
 
 const pointerIcon = L.icon({
-            iconUrl: './icons/pointer.png',
+            iconUrl: './icons/click_finger.png',
             iconSize: [20, 20],
             iconAnchor: [0, 0]
 });
-
-
-const pointerClusterIcon = L.divIcon({
-            className: 'custom-cluster-icon2',
-            iconSize: [25, 25],
-            html: '<img src="./icons/pointer.png" alt="Cluster Icon" />'
-        });
 
 
 export let arrowSymbolForcast = L.markerClusterGroup({

@@ -160,7 +160,7 @@ img { max-width: 100%; }
 .text-labels {
   position: relative;
   font-weight: 700;
-  color: whitesmoke;
+  color: black;
   font-size: 12px;
   border: 1px solid #ccc;
   padding: 5px;

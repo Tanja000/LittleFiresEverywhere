@@ -231,9 +231,7 @@ input[type="range"] {
 
 
 
-
-/*another-popop style*/
-.another-popup .leaflet-popup-content-wrapper {
+.marker-popup .leaflet-popup-content-wrapper {
   background: darkred;
   color: #f6f6f6;
   font-size: 12px;
@@ -244,14 +242,14 @@ input[type="range"] {
   width: 250px;
   height: 220px;
 }
-.another-popup .leaflet-popup-content-wrapper a {
+.marker-popup .leaflet-popup-content-wrapper a {
   color: rgba(200, 200, 200, 0.1);
 }
-.another-popup .leaflet-popup-tip-container {
+.marker-popup .leaflet-popup-tip-container {
   width: 50px;
   height: 15px;
 }
-.another-popup .leaflet-popup-tip {
+.marker-popup .leaflet-popup-tip {
   background: transparent;
   border: none;
   box-shadow: none;

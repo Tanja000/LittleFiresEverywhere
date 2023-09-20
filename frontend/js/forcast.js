@@ -2,22 +2,24 @@
 let allPolygons = {};
 export let forcastPolygons = L.markerClusterGroup();
 
-export const popupOptions = {
-            'maxWidth': '500',
-            'className': 'another-popup'};
-
 export const handIcon = L.icon({
             iconUrl: './icons/click_finger.png',
             iconSize: [24, 24],
             iconAnchor: [0, 0]
 });
 
+let forecastControl = false;
 
 const pointerIcon = L.icon({
             iconUrl: './icons/click_finger.png',
             iconSize: [20, 20],
             iconAnchor: [0, 0]
 });
+
+const popupOptions = {
+    'maxWidth': '500',
+    'className': 'marker-popup'
+};
 
 
 export let arrowSymbolForcast = L.markerClusterGroup({
@@ -29,15 +31,6 @@ export let arrowSymbolForcast = L.markerClusterGroup({
 			zoomToBoundsOnClick: true
 		});
 
-export function deleteWheelWaiting(){
-    console.log("delete wheel")
-    let elements = document.getElementsByClassName('leaflet-control-button leaflet-control');
-    if(elements) {
-        while (elements.length > 0) {
-            elements[0].parentNode.removeChild(elements[0]);
-        }
-    }
-}
 
 function buttonClick(){
     console.log("button clicked");
@@ -126,7 +119,7 @@ function calculateCircleCoordinates(center, radius, numPoints) {
   return data;
 }*/
 
-async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData, key, ControlLayer, lastValue){
+async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData, key, ControlLayer){
     const distance = 0.001; // 100 Meter in Grad (angenommen)
     const points = calculatePerpendicularCoordinates(pathCoordinates, distance);
     const stepIncrement = 2;
@@ -217,7 +210,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
             let sliderValue = 10 - currentIndex;
             let sliderContent = popupContent + '<br><div id="slider-container">' +
                 '<input id=' + idSlider + ' type="range" min="0" max="10" step="1" value=' + sliderValue + '>' +
-                '<div class="value-display" id=' + idSliderText + '>Date: ' + date + ' Time: ' + newStartTime + ' UTC</div>' +
+                '<div id=' + idSliderText + '>Date: ' + date + ' Time: ' + newStartTime + ' UTC</div>' +
                 '</div>';
 
             let popup = L.popup({
@@ -225,8 +218,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 autoPan: true,
             }).setContent(sliderContent);
 
-            //  hullPolygon.bindPopup(popup).openPopup();
-            hullPolygon.bindPopup(popup);
+            hullPolygon.bindPopup(popup, popupOptions);
             hullPolygon.on('popupopen', function () {
                 hullPolygon.setStyle({
                     fillColor: 'orange',
@@ -310,10 +302,9 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 forcastPolygons.addLayer(textLabel);
                 forcastPolygons.addTo(map);
 
-                if(lastValue){deleteWheelWaiting();}
-
-                if (ControlLayer._layers.length <= 6 && lastValue) {
+                if (ControlLayer._layers.length <= 6 && !forecastControl) {
                     ControlLayer.addOverlay(forcastPolygons, "Forecast");
+                    forecastControl = true;
                 }
 
                 function clickTextLabel() {
@@ -339,7 +330,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
 
 
 
-async function getLayers(responseData, map, meteoData, ControlLayer, lastValue) {
+async function getLayers(responseData, map, meteoData, ControlLayer) {
     for (const key in responseData) {
         let coordinatesArray = [];
         let dictCoordinates = responseData[key];
@@ -353,13 +344,12 @@ async function getLayers(responseData, map, meteoData, ControlLayer, lastValue) 
         if(Object.values(dictCoordinates).length > 0) {
             let startTime = Object.values(dictCoordinates)[0].startTime;
             let date = Object.values(dictCoordinates)[0].dateAquired;
-           // coordinatesArray = swapCoordinates(coordinatesArray);
-            await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key, ControlLayer, lastValue);
+            await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key, ControlLayer);
         }
     }
 }
 
-export async function getForcastLayer(responseData, map, meteoData, ControlLayer, lastValue) {
+export async function getForcastLayer(responseData, map, meteoData, ControlLayer) {
     console.log("new forcast for rectangle selected");
     for (const key in responseData) {
         const response = responseData[key];
@@ -373,7 +363,7 @@ export async function getForcastLayer(responseData, map, meteoData, ControlLayer
             }
 
         }
-        await getLayers(response, map, meteo, ControlLayer, lastValue);
+        await getLayers(response, map, meteo, ControlLayer);
     }
 
 

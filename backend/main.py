@@ -120,16 +120,18 @@ def get_meteo_data(lat, lng, date, hour_no):
     date_end = add_days(date, 2)
     url_windspeed = "https://api.open-meteo.com/v1/forecast?latitude=" + str(lat) + "&longitude=" + str(
         lng) + "&start_date=" + date_start + \
-                    "&end_date=" + date_end + "&hourly=windspeed_10m&forecast_days=2&hourly=winddirection_10m&hourly=relativehumidity_2m&hourly=temperature_2m" \
+                    "&end_date=" + date_end + "&hourly=windspeed_10m&hourly=winddirection_10m&hourly=relativehumidity_2m&hourly=temperature_2m" \
                                               "&hourly=evapotranspiration&hourly=rain&hourly=soil_temperature_0cm&hourly=soil_moisture_0_1cm"
 
     #print(url_windspeed)
     #print(str(lat))
     #print(str(lng))
+
     try:
         response = urllib.request.urlopen(url_windspeed).read()
         response = json.loads(response)
         data_dict = {}
+
         data_dict['windspeed'] = response["hourly"]["windspeed_10m"][hour_no]
         data_dict['winddirection'] = response["hourly"]["winddirection_10m"][hour_no]
         data_dict['relativehumidity'] = response["hourly"]["relativehumidity_2m"][hour_no]
@@ -177,6 +179,7 @@ def get_new_coordinate(lat, lng, date, time_str):
     noNewValues = False
     meteo_data_hour = {}
     meteo_data = {}
+    hour_counter = 0
     for hour_no in range(time, time + 23, 2):
         if not noNewValues:
             meteo_data_hour[hour_no] = get_meteo_data(lat, lng, date, hour_no)
@@ -193,10 +196,12 @@ def get_new_coordinate(lat, lng, date, time_str):
         lng = new_lng
         new_coord = {"latitude": new_lat, "longitude": new_lng, "dateAquired": date, "startTime": time}
         day[hour_no] = new_coord
-        if distance <= 500:
+        if distance <= 500 and hour_counter == 0:
             noNewValues = True
+            hour_counter += 1
         else:
             noNewValues = False
+            hour_counter = 0
 
     return day, meteo_data_hour
 

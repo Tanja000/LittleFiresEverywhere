@@ -113,13 +113,23 @@ function calculateCircleCoordinates(center, radius, numPoints) {
     return circleCoordinates;
 }
 
+export function deleteWheelWaiting(){
+    console.log("delete wheel")
+    let elements = document.getElementsByClassName('leaflet-control-button leaflet-control');
+    if(elements) {
+        while (elements.length > 0) {
+            elements[0].parentNode.removeChild(elements[0]);
+        }
+    }
+}
+
 /*async function fetchMapAsync() {
   const response = await fetch('https://unpkg.com/@geo-maps/earth-seas-10m/map.geo.json');
   const data = await response.json();
   return data;
 }*/
 
-async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData, key, ControlLayer){
+async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData, key, ControlLayer, lastCall){
     const distance = 0.001; // 100 Meter in Grad (angenommen)
     const points = calculatePerpendicularCoordinates(pathCoordinates, distance);
     const stepIncrement = 2;
@@ -135,7 +145,6 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
     let dates = [];
     let times = [];
     let polygonsList = [];
-    let textLabel;
 
     async function animateConvexHull() {
         if (step < points.length) {
@@ -311,8 +320,11 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                     hullPolygon.bindPopup(popup).openPopup();
                     map.setView(textCenter, 13);
                 }
+                if(lastCall){
+                    console.log("FINISHED");
+                    deleteWheelWaiting();
+                }
             }
-
 
             currentIndex++;
             step += stepIncrement;
@@ -330,7 +342,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
 
 
 
-async function getLayers(responseData, map, meteoData, ControlLayer) {
+async function getLayers(responseData, map, meteoData, ControlLayer, lastCall) {
     for (const key in responseData) {
         let coordinatesArray = [];
         let dictCoordinates = responseData[key];
@@ -344,12 +356,12 @@ async function getLayers(responseData, map, meteoData, ControlLayer) {
         if(Object.values(dictCoordinates).length > 0) {
             let startTime = Object.values(dictCoordinates)[0].startTime;
             let date = Object.values(dictCoordinates)[0].dateAquired;
-            await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key, ControlLayer);
+            await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key, ControlLayer, lastCall);
         }
     }
 }
 
-export async function getForcastLayer(responseData, map, meteoData, ControlLayer) {
+export async function getForcastLayer(responseData, map, meteoData, ControlLayer, lastCall) {
     console.log("new forcast for rectangle selected");
     for (const key in responseData) {
         const response = responseData[key];
@@ -363,9 +375,8 @@ export async function getForcastLayer(responseData, map, meteoData, ControlLayer
             }
 
         }
-        await getLayers(response, map, meteo, ControlLayer);
+        await getLayers(response, map, meteo, ControlLayer, lastCall);
     }
-
 
     return;
 }

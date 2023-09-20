@@ -1,15 +1,16 @@
 import {
     getForcastLayer,
     createWheelWaiting,
-    handIcon
+    handIcon,
+    deleteWheelWaiting
 } from "./forcast.js";
 import {parseTime, getStartAndEndDate, parseDate, parseConfidence, parseCoordinates, getRectangleData,
     fetchEffiKMLContent, fetchKMLContent, parseCDATA, responseDataManual} from "./present_helper.js";
 
 //////////////////////////////////////////////////////////////////
 /*change here for local application or deployment*/
-//const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
-const backendURL = "http://127.0.0.1:8000";
+const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
+//const backendURL = "http://127.0.0.1:8000";
 /*For deployment set to true!*/
 const EFfiData = true;
 const NASAData = true;
@@ -32,6 +33,7 @@ const originalCenter = [23, 8];
 let burningAreas = L.markerClusterGroup();
 let ControlLayer;
 let firesCoordinates = [];
+let modisDataActual;
 
 const popupOptions = {
             'maxWidth': '500',
@@ -185,6 +187,12 @@ async function getMap() {
         {bounds: [[-30, 140], [-60, 180]]},
     ];
 
+     if (NASAData) {
+         await getKMLLayer(modis_active_World);
+     } else {
+         await getKMLLayer(modis_backup_World);
+     }
+
     rectangles.forEach(function (rectangleData) {
         const rectangle = L.rectangle(rectangleData.bounds, {color: 'darkred', weight: 2}).addTo(map);
         const center = L.latLng(
@@ -211,11 +219,7 @@ async function getMap() {
             map.removeLayer(rectangle);
             map.removeLayer(textLabel);
 
-            if (NASAData) {
-                getKMLLayer(modis_active_World, corner1, corner2);
-            } else {
-                getKMLLayer(modis_backup_World, corner1, corner2);
-            }
+            getDataFromKMLLayer(corner1, corner2);
         }
 
         textLabel.on('click', startClick);
@@ -279,7 +283,6 @@ async function getMap() {
                 }
             }
         }).addTo(map);
-
 }
 
 
@@ -302,10 +305,10 @@ function iconsAtFireOrigin(title, location, confidence, dateAquired, time){
 }
 
 
-function processKMLData(kmlData, corner1, corner2, addFireMarker){
+function processKMLData(corner1, corner2, addFireMarker){
         let parsedValues = {};
           const parser = new DOMParser();
-          let  xmlDoc = parser.parseFromString(kmlData, 'text/xml');
+          let  xmlDoc = parser.parseFromString(modisDataActual, 'text/xml');
           const descLength = xmlDoc.getElementsByTagName("description").length;
           let parsedCoordinates = {};
           let count = 0;
@@ -345,11 +348,12 @@ function processKMLData(kmlData, corner1, corner2, addFireMarker){
               console.log("no Data");
                if(confidenceThreshhold >= 80){
                     confidenceThreshhold -= 5;
-                    [parsedValues, parsedCoordinates] = processKMLData(kmlData, corner1, corner2, false);
+                    [parsedValues, parsedCoordinates] = processKMLData(corner1, corner2, false);
                 }
                else {
-                   return [parsedValues, parsedCoordinates];
                    deleteWheelWaiting();
+                   console.log("FINISHED");
+                   return [parsedValues, parsedCoordinates];
                }
           }
           confidenceThreshhold = 90;
@@ -386,7 +390,7 @@ function processEffiKMLData(kmlData, corner1, corner2) {
 }
 
 
-async function processAndMapData(parsedValues, parsedCoordinates) {
+async function processAndMapData(parsedValues, parsedCoordinates, lastCall) {
     let responseDataAll = {};
     let responseData = {};
     let coordinatesData = {};
@@ -420,20 +424,11 @@ async function processAndMapData(parsedValues, parsedCoordinates) {
     meteoData = responseData['meteo_data'];
     responseDataAll[dataCounter] = coordinatesData;
     meteoDataAll[dataCounter] = meteoData;
-    await getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer);
+    await getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer, lastCall);
     dataCounter++;
     return parsedValues;
 }
 
-function deleteWheelWaiting(){
-    console.log("delete wheel")
-    let elements = document.getElementsByClassName('leaflet-control-button leaflet-control');
-    if(elements) {
-        while (elements.length > 0) {
-            elements[0].parentNode.removeChild(elements[0]);
-        }
-    }
-}
 
 async function catchMODISArchiveData(kmlData, corner1, corner2) {
     let parsedCoordinates = {};
@@ -450,11 +445,10 @@ async function catchMODISArchiveData(kmlData, corner1, corner2) {
 
 async function loadForcastInBackground(parsedValues, parsedCoordinates) {
     const coordinatesLength = Object.keys(parsedCoordinates).length;
+    let lastCall = false;
     //if less or equal than 4 fires for forecast
     if ( coordinatesLength <= 4){
-        await processAndMapData(parsedValues, parsedCoordinates);
-        console.log("FINISHED");
-        deleteWheelWaiting();
+        await processAndMapData(parsedValues, parsedCoordinates, true);
         return;
     }
 
@@ -469,21 +463,21 @@ async function loadForcastInBackground(parsedValues, parsedCoordinates) {
 
         //process 4 fires and map those
         if (count === 4 || coordinatesLength === count) {
-            await processAndMapData(parsedValues, tempDict);
+            if(entireCount === coordinatesLength - 1){
+                lastCall = true;
+            }
+            else {lastCall = false;}
+            await processAndMapData(parsedValues, tempDict, lastCall);
             tempDict = {};
             count = 0;
         }
 
         if (entireCount === coordinatesLength - 1 && count !== 0){
-            await processAndMapData(parsedValues, tempDict);
-            console.log("FINISHED");
-            deleteWheelWaiting();
+            await processAndMapData(parsedValues, tempDict, true);
             return;
         }
         entireCount++;
     }
-    console.log("FINISHED");
-    deleteWheelWaiting();
 }
 
 function calculateBurningAreas(){
@@ -536,53 +530,56 @@ function calculateBurningAreas(){
     }
 }
 
-
-
-async function getKMLLayer(kmlData, corner1, corner2){
-    createWheelWaiting(map);
+async function getKMLLayer(kmlData){
     await fetch(kmlData)
         .then(response => response.text())
         .then(async data => {
-            //let kmlData;
-            let parsedValues = {};
-            let parsedCoordinates = {};
-            if (data.length < 500) {
-                console.log("no Modis data");
-                //try effis data first!
-                if (EFfiData) {
-                    try {
-                        setEffiUrl();
-                        kmlData = await fetchEffiKMLContent(effis_fires);
-                        [parsedValues, parsedCoordinates] = processEffiKMLData(kmlData, corner1, corner2);
-                    } catch (error) {console.error(error);}
-                }
-                //archive Modis Data if both kml not available
-                const parsedValuesLength = Object.keys(parsedValues).length;
-                if (parsedValuesLength == 0) {
-                    [parsedValues, parsedCoordinates] = catchMODISArchiveData(kmlData, corner1, corner2)
-                }
-            } else {
-                kmlData = data;
-                [parsedValues, parsedCoordinates] = processKMLData(kmlData, corner1, corner2, true);
-            }
-
-
-            map.addLayer(markersCluster);
-
-            if (ControlLayer._layers.length <= 4) {
-                ControlLayer.addOverlay(markersCluster, 'Active Fires');
-            }
-
-            calculateBurningAreas();
-            burningAreas.addTo(map);
-
-            if (ControlLayer._layers.length <= 5) {
-                ControlLayer.addOverlay(burningAreas, 'Burning Areas');
-            }
-
-            console.log(backendURL + "/process_data");
-            await loadForcastInBackground(parsedValues, parsedCoordinates);
+            modisDataActual = data;
         }).catch(error => console.error('Fehler beim Laden der KML-Datei:', error));
+}
+
+async function getDataFromKMLLayer(corner1, corner2){
+    createWheelWaiting(map);
+    let parsedValues = {};
+    let parsedCoordinates = {};
+    if (modisDataActual.length === 0){
+        console.log("wait for 10 seconds dann getDataFromKMLLayer()")
+    }
+    if (modisDataActual.length < 500) {
+        console.log("no Modis data");
+        //try effis data first!
+        if (EFfiData) {
+            try {
+                setEffiUrl();
+                modisDataActual = await fetchEffiKMLContent(effis_fires);
+                [parsedValues, parsedCoordinates] = processEffiKMLData(modisDataActual, corner1, corner2);
+            } catch (error) {console.error(error);}
+        }
+        //archive Modis Data if both kml not available
+        const parsedValuesLength = Object.keys(parsedValues).length;
+        if (parsedValuesLength == 0) {
+            [parsedValues, parsedCoordinates] = catchMODISArchiveData(modisDataActual, corner1, corner2)
+        }
+    }
+    else {
+        [parsedValues, parsedCoordinates] = processKMLData(corner1, corner2, true);
+    }
+
+    map.addLayer(markersCluster);
+
+    if (ControlLayer._layers.length <= 4) {
+        ControlLayer.addOverlay(markersCluster, 'Active Fires');
+    }
+
+    calculateBurningAreas();
+    burningAreas.addTo(map);
+
+    if (ControlLayer._layers.length <= 5) {
+        ControlLayer.addOverlay(burningAreas, 'Burning Areas');
+    }
+
+    console.log(backendURL + "/process_data");
+    await loadForcastInBackground(parsedValues, parsedCoordinates);
 }
 
 console.log("starting map...")

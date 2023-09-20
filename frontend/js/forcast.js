@@ -31,11 +31,6 @@ export let arrowSymbolForcast = L.markerClusterGroup({
 			zoomToBoundsOnClick: true
 		});
 
-
-function buttonClick(){
-    console.log("button clicked");
-}
-
 export function createWheelWaiting(map){
     const wheelButtonOptions = {
         'text': 'Loading data',
@@ -51,34 +46,54 @@ export function createWheelWaiting(map){
     }
 }
 
+export function utcTimeToDate(date, time){
+    if (Number.isInteger(time)) {
+        if (time < 10) {
+          time = "0" + time.toString() + ":00";
+        }
+        else {
+          time = time.toString() + ":00";
+        }
+    }
+    if (time.includes("UTC")){
+        time = time.slice(0, -4)
+    }
+    const dateTime = date + "T" + time + "Z";
+    const localDate = new Date(dateTime);
+    return localDate.toString();
+}
+
+function buttonClick(){
+    console.log("button clicked");
+}
 
 
 function calculatePerpendicularCoordinates(pathCoordinates, distance) {
-    var perpendicularCoordinates = [];
+    const perpendicularCoordinates = [];
 
-    for (var i = 0; i < pathCoordinates.length; i++) {
+    for (let i = 0; i < pathCoordinates.length; i++) {
         var currentCoord = pathCoordinates[i];
-        var nextCoord = pathCoordinates[i + 1] || pathCoordinates[i - 1];
+        const nextCoord = pathCoordinates[i + 1] || pathCoordinates[i - 1];
 
-        var dx = nextCoord[0] - currentCoord[0];
-        var dy = nextCoord[1] - currentCoord[1];
+        const dx = nextCoord[0] - currentCoord[0];
+        const dy = nextCoord[1] - currentCoord[1];
 
-        var length = Math.sqrt(dx * dx + dy * dy);
+        const length = Math.sqrt(dx * dx + dy * dy);
 
-        var perpendicularVector = [-dy, dx];
+        const perpendicularVector = [-dy, dx];
 
-        var normalizedPerpendicularVector = [
+        const normalizedPerpendicularVector = [
             perpendicularVector[0] / length,
             perpendicularVector[1] / length
         ];
 
-        var offsetX = normalizedPerpendicularVector[0] * distance;
-        var offsetY = normalizedPerpendicularVector[1] * distance;
-        var newCoord1 = [
+        const offsetX = normalizedPerpendicularVector[0] * distance;
+        const offsetY = normalizedPerpendicularVector[1] * distance;
+        const newCoord1 = [
             currentCoord[0] + offsetX,
             currentCoord[1] + offsetY
         ];
-        var newCoord2 = [
+        const newCoord2 = [
             currentCoord[0] - offsetX,
             currentCoord[1] - offsetY
         ];
@@ -159,7 +174,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
             }
 
             let rectanglePoints = [];
-            for (let i = step - stepIncrement; i < step + stepIncrement; i++) {
+            for (let i = step - stepIncrement ; i < step + stepIncrement; i++) {
                 const newPoint = turf.point(points[i]);
                 hullCoordinates.features.push(newPoint);
                 rectanglePoints.push(points[i]);
@@ -203,9 +218,13 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
             //wegen Koordinaten rectangle Berechnung - ersten meteo Wert geglassen
             allPolygons[key] = polygonsList;
 
+            let dateAndTime = utcTimeToDate(date, newStartTime);
+            const gmtIndex = dateAndTime.indexOf("GMT");
+            dateAndTime = dateAndTime.substring(0, gmtIndex);
+
             let idContent = "popupContent" + key;
             let popupContent = "<div id=" + idContent + ">" +
-                "<b>FIRE SPREAD FORECAST: </b><br><br> Date: " + date + "<br>Time: " + newStartTime + " UTC" +
+                "<b>FIRE SPREAD FORECAST: </b><br><br>" + dateAndTime +
                 "<br>Windspeed: " + meteoData[hour]['windspeed'] + "km/h" +
                 "<br>Humidity: " + meteoData[hour]['relativehumidity'] + "%" +
                 "<br>Evapotranspiration: " + meteoData[hour]['evapotranspiration'] + "mm" +
@@ -215,19 +234,17 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 "<br>Temperature: " + meteoData[hour]['temperature_2m'] + "°C" + "</div>";
 
             let idSlider = "time-slider" + key;
-            let idSliderText = "slider-value" + key;
+         //   let idSliderText = "slider-value" + key;
             let sliderValue = 10 - currentIndex;
             let sliderContent = popupContent + '<br><div id="slider-container">' +
-                '<input id=' + idSlider + ' type="range" min="0" max="10" step="1" value=' + sliderValue + '>' +
-                '<div id=' + idSliderText + '>Date: ' + date + ' Time: ' + newStartTime + ' UTC</div>' +
-                '</div>';
+                '<input id=' + idSlider + ' type="range" min="0" max="10" step="1" value=' + sliderValue + '></div>';
 
-            let popup = L.popup({
+            let popupHull = L.popup({
                 offset: [75, -75],
                 autoPan: true,
             }).setContent(sliderContent);
 
-            hullPolygon.bindPopup(popup, popupOptions);
+            hullPolygon.bindPopup(popupHull, popupOptions);
             hullPolygon.on('popupopen', function () {
                 hullPolygon.setStyle({
                     fillColor: 'orange',
@@ -237,7 +254,9 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 });
                 const slider = document.getElementById(idSlider);
                 slider.addEventListener('change', sliderChanged);
-                map.removeLayer(textLabel);
+                if(!textLabel){
+                    hullPolygon.closePopup();
+                }
             });
             hullPolygon.on('popupclose', function () {
                 for (const poly of allPolygons[key]) {
@@ -250,16 +269,24 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 }
             });
 
+            const slider = document.getElementById(idSlider);
+            if (slider) {
+                slider.addEventListener('change', sliderChanged);
+            }
+
+
             function sliderChanged() {
                 const idSlider = "time-slider" + key;
                 const slider = document.getElementById(idSlider);
                 const sliderValue = slider.value;
-                const indexMeteo = hours[11 - sliderValue];
-                const idSliderText = "slider-value" + key;
-                const sliderText = document.getElementById(idSliderText);
-                sliderText.innerHTML = "Date: " + dates[10 - sliderValue] + " Time: " + times[10 - sliderValue] + " UTC";
+                const indexMeteo = hours[10 - sliderValue];
+             //   const idSliderText = "slider-value" + key;
+               // const sliderText = document.getElementById(idSliderText);
+               // sliderText.innerHTML = "Date: " + dates[10 - sliderValue] + " Time: " + times[10 - sliderValue] + " UTC";
+                dateAndTime = utcTimeToDate(dates[10 - sliderValue], times[10 - sliderValue]);
+                dateAndTime = dateAndTime.substring(0, gmtIndex);
                 const popupContent =
-                    "<b>FIRE SPREAD FORECAST: </b><br><br> Date: " + dates[10 - sliderValue] + "<br>Time: " + times[10 - sliderValue] + " UTC" +
+                    "<b>FIRE SPREAD FORECAST: </b><br><br>" + dateAndTime +
                     "<br>Windspeed: " + meteoData[indexMeteo]['windspeed'] + "km/h" +
                     "<br>Humidity: " + meteoData[indexMeteo]['relativehumidity'] + "%" +
                     "<br>Evapotranspiration: " + meteoData[indexMeteo]['evapotranspiration'] + "mm" +
@@ -289,11 +316,6 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
 
             }
 
-            const slider = document.getElementById(idSlider);
-            if (slider) {
-                slider.addEventListener('change', sliderChanged);
-            }
-
             if (currentIndex == 10) {
                 const textCenter =  L.latLng(center[0], center[1]);
                 textLabel = L.marker(textCenter, {
@@ -317,7 +339,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 }
 
                 function clickTextLabel() {
-                    hullPolygon.bindPopup(popup).openPopup();
+                    hullPolygon.bindPopup(popupHull).openPopup();
                     map.setView(textCenter, 13);
                 }
                 if(lastCall){
@@ -380,5 +402,4 @@ export async function getForcastLayer(responseData, map, meteoData, ControlLayer
 
     return;
 }
-
 

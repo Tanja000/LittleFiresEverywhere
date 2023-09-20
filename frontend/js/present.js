@@ -2,7 +2,8 @@ import {
     getForcastLayer,
     createWheelWaiting,
     handIcon,
-    deleteWheelWaiting
+    deleteWheelWaiting,
+    utcTimeToDate
 } from "./forcast.js";
 import {parseTime, getStartAndEndDate, parseDate, parseConfidence, parseCoordinates, getRectangleData,
     fetchEffiKMLContent, fetchKMLContent, parseCDATA, responseDataManual} from "./present_helper.js";
@@ -187,11 +188,6 @@ async function getMap() {
         {bounds: [[-30, 140], [-60, 180]]},
     ];
 
-     if (NASAData) {
-         await getKMLLayer(modis_active_World);
-     } else {
-         await getKMLLayer(modis_backup_World);
-     }
 
     rectangles.forEach(function (rectangleData) {
         const rectangle = L.rectangle(rectangleData.bounds, {color: 'darkred', weight: 2}).addTo(map);
@@ -283,7 +279,15 @@ async function getMap() {
                 }
             }
         }).addTo(map);
+
+      if (NASAData) {
+         await getKMLLayer(modis_active_World);
+     } else {
+         await getKMLLayer(modis_backup_World);
+     }
 }
+
+
 
 
 function iconsAtFireOrigin(title, location, confidence, dateAquired, time){
@@ -293,8 +297,10 @@ function iconsAtFireOrigin(title, location, confidence, dateAquired, time){
         iconAnchor: [0, 0],
         popupAnchor: [0, -32]
     });
+    const dateAndTime = utcTimeToDate(dateAquired, time);
+
     const marker = L.marker([location.longitude, location.latitude], {icon: customIcon});
-    const popupContent = title + "<br> <br> Date Acquired: " + dateAquired + "<br> Time Acquired: " + time +
+    const popupContent = title + "<br> <br> " + dateAndTime +
         " <br> <br> Confidence: " + confidence +
         " <br> <br> Coordinates: [" + location.longitude +", " + location.latitude + "]";
        //+ " <br> <br>  <br> <a style='color: black' href='https://www.earthdata.nasa.gov/learn/find-data/near-real-time/firms' target='_blank'> <b>More Info </b> </a> ";
@@ -374,7 +380,6 @@ function processEffiKMLData(kmlData, corner1, corner2) {
         const time = "00:00 UTC";
         let coordinates = xmlDoc.getElementsByTagName("coordinates")[i].innerHTML;
         parsedValues = parseCoordinates(coordinates);
-        //Europa: [71.5, -33.0], [34.5, 44.0]
         if (parsedValues.longitude > corner1.lat && parsedValues.longitude < corner2.lat && parsedValues.latitude > corner1.lng && parsedValues.latitude < corner2.lng) {
             parsedCoordinates = getRectangleData(confidenceThreshhold, confidence, parsedValues, dateAquired, time, count, parsedCoordinates);
             let marker = iconsAtFireOrigin("MODIS FIRE from EFFI", parsedValues, confidence, dateAquired, time);
@@ -539,12 +544,15 @@ async function getKMLLayer(kmlData){
 }
 
 async function getDataFromKMLLayer(corner1, corner2){
-    createWheelWaiting(map);
+
     let parsedValues = {};
     let parsedCoordinates = {};
     if (modisDataActual.length === 0){
-        console.log("wait for 10 seconds dann getDataFromKMLLayer()")
+        setTimeout(function() {
+        console.log("wait for 3 seconds");
+        getDataFromKMLLayer(corner1, corner2)}, 3000);
     }
+    createWheelWaiting(map);
     if (modisDataActual.length < 500) {
         console.log("no Modis data");
         //try effis data first!

@@ -5,6 +5,11 @@ import json
 from pydantic import BaseModel
 import math
 from datetime import datetime, timedelta
+import time
+import schedule
+from deta import Deta
+from fastkml import kml
+from fastapi.responses import JSONResponse
 
 
 api_url = "https://api.open-meteo.com/v1/forecast"
@@ -25,11 +30,28 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+drive_key = "a0ekhngww6y_XgKDEhXXbzuJb9fYzsjnPvFD1HECAH6M"
+deta_drive = Deta(drive_key)
+deta_file = deta_drive.Drive("modis_fire")
+filename = 'MODIS_C6_1_Global_24h.kml'
 
 class ActionPayload(BaseModel):
     action: str
     value: int
     url: str
+
+def getModisKml():
+    url = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Global_24h.kml"
+    #dateiname = "../frontend/public/data/MODIS_C6_1_Global_24h.kml";
+    try:
+        response = urllib.request.urlopen(url)
+        html = response.read().decode('utf-8')
+        deta_file.put(filename, html)
+       # with open(dateiname, 'w', encoding='utf-8') as datei:
+       #     datei.write(html)
+        print(f'Die HTML-Seite wurde erfolgreich im deta drive gespeichert.')
+    except Exception as e:
+        print(f'Fehler beim Speichern der HTML-Seite: {e}')
 
 
 # https://open-meteo.com/ resolution 1km:
@@ -208,6 +230,7 @@ def get_new_coordinate(lat, lng, date, time_str):
 
 @app.post("/process_data")
 async def receive_data(coordinates: dict):
+    print("starting processing data")
     response_dict = {}
     meteo_dict = {}
     for key, value in coordinates.items():
@@ -227,3 +250,14 @@ async def create_feed():
     print("test ...")
     content = get_new_coordinate()
     return content
+
+
+# Download alle 2 Stunden planen
+#getModisKml()
+schedule.every(3).hours.do(getModisKml)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)

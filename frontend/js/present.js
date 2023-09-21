@@ -8,19 +8,23 @@ import {
 import {parseTime, getStartAndEndDate, parseDate, parseConfidence, parseCoordinates, getRectangleData,
     fetchEffiKMLContent, fetchKMLContent, parseCDATA, responseDataManual} from "./present_helper.js";
 
+//const { Deta } = require('deta');
+//import Deta from "./js_external/deta/dist/types/deta.d.ts";
+//import Deta from 'https://cdn.deta.space/js/deta@latest/deta.mjs'
+import { Deta, Drive } from 'https://cdn.deta.space/js/deta@latest/deta.mjs';
+
 //////////////////////////////////////////////////////////////////
 /*change here for local application or deployment*/
-const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
-//const backendURL = "http://127.0.0.1:8000";
+//const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
+const backendURL = "http://127.0.0.1:8000";
 /*For deployment set to true!*/
 const EFfiData = true;
-const NASAData = true;
 const weatherApi = true;
 //////////////////////////////////////////////////////////////////
 
+
 const activeFireConfidenceThreshold = 50;
 const modis_active_World = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Global_24h.kml";
-const modis_backup_World= "/data/MODIS_C6_1_Global_24h.kml";
 let effis_fires =  "";
 let map;
 let confidenceThreshhold = 90;
@@ -34,6 +38,7 @@ const originalCenter = [23, 8];
 let burningAreas = L.markerClusterGroup();
 let ControlLayer;
 let firesCoordinates = [];
+let firstTimeWheel = true;
 let modisDataActual;
 
 const popupOptions = {
@@ -56,6 +61,16 @@ const markersCluster = L.markerClusterGroup({
 			zoomToBoundsOnClick: true
 		});
 
+async function getModisData() {
+    const drive_key = "a0ekhngww6y_XgKDEhXXbzuJb9fYzsjnPvFD1HECAH6M";
+    const deta = Deta(drive_key);
+    const drive = deta.Drive('modis_fire');
+    const filename = 'MODIS_C6_1_Global_24h.kml'
+
+    const response = await drive.get(filename);
+    modisDataActual = await response.text()
+}
+
 function setEffiUrl(){
     [day_start, day_end] = getStartAndEndDate();
     effis_fires = "https://maps.effis.emergency.copernicus.eu/gwis?LAYERS=modis.hs&FORMAT=kml&TRANSPARENT=true&SINGLETILE=true&SERVICE=wms&VERSION=1.1.1&REQUEST=GetMap&STYLES=&SRS=EPSG:4326&BBOX=-18.0,27.0,42.0,72.0&WIDTH=1600&HEIGHT=1200&TIME=" + day_start + "/" + day_end;
@@ -71,6 +86,8 @@ function deletePopup(){
 }
 
 async function getMap() {
+
+
   /*  const osm = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 21,
         attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
@@ -280,11 +297,7 @@ async function getMap() {
             }
         }).addTo(map);
 
-      if (NASAData) {
-         await getKMLLayer(modis_active_World);
-     } else {
-         await getKMLLayer(modis_backup_World);
-     }
+      await getModisData();
 }
 
 
@@ -439,7 +452,7 @@ async function catchMODISArchiveData(kmlData, corner1, corner2) {
     let parsedCoordinates = {};
     let parsedValues = {};
     try {
-        kmlData = await fetchKMLContent(modis_backup_Europe);
+        kmlData = await fetchKMLContent(modis_backup_World);
         [parsedValues, parsedCoordinates] = processKMLData(kmlData, corner1, corner2, true);
     } catch (error) {
         console.error(error);
@@ -535,60 +548,64 @@ function calculateBurningAreas(){
     }
 }
 
-async function getKMLLayer(kmlData){
-    await fetch(kmlData)
-        .then(response => response.text())
-        .then(async data => {
-            modisDataActual = data;
-        }).catch(error => console.error('Fehler beim Laden der KML-Datei:', error));
-}
 
 async function getDataFromKMLLayer(corner1, corner2){
 
     let parsedValues = {};
     let parsedCoordinates = {};
-    if (modisDataActual.length === 0){
+    if (!modisDataActual || modisDataActual.length === 0){
+        if(firstTimeWheel){
+            createWheelWaiting(map);
+            firstTimeWheel = false;
+        }
         setTimeout(function() {
         console.log("wait for 3 seconds");
         getDataFromKMLLayer(corner1, corner2)}, 3000);
     }
-    createWheelWaiting(map);
-    if (modisDataActual.length < 500) {
-        console.log("no Modis data");
-        //try effis data first!
-        if (EFfiData) {
-            try {
-                setEffiUrl();
-                modisDataActual = await fetchEffiKMLContent(effis_fires);
-                [parsedValues, parsedCoordinates] = processEffiKMLData(modisDataActual, corner1, corner2);
-            } catch (error) {console.error(error);}
-        }
-        //archive Modis Data if both kml not available
-        const parsedValuesLength = Object.keys(parsedValues).length;
-        if (parsedValuesLength == 0) {
-            [parsedValues, parsedCoordinates] = catchMODISArchiveData(modisDataActual, corner1, corner2)
-        }
-    }
     else {
-        [parsedValues, parsedCoordinates] = processKMLData(corner1, corner2, true);
+        if(firstTimeWheel){
+            createWheelWaiting(map);
+            firstTimeWheel = false;
+        }
+        if (modisDataActual.length < 500) {
+            console.log("no Modis data");
+            //try effis data first!
+            if (EFfiData) {
+                try {
+                    setEffiUrl();
+                    modisDataActual = await fetchEffiKMLContent(effis_fires);
+                    [parsedValues, parsedCoordinates] = processEffiKMLData(modisDataActual, corner1, corner2);
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+            //archive Modis Data if both kml not available
+            const parsedValuesLength = Object.keys(parsedValues).length;
+            if (parsedValuesLength == 0) {
+                [parsedValues, parsedCoordinates] = catchMODISArchiveData(modisDataActual, corner1, corner2)
+            }
+        } else {
+            [parsedValues, parsedCoordinates] = processKMLData(corner1, corner2, true);
+        }
+
+        map.addLayer(markersCluster);
+
+        if (ControlLayer._layers.length <= 4) {
+            ControlLayer.addOverlay(markersCluster, 'Active Fires');
+        }
+
+        calculateBurningAreas();
+        burningAreas.addTo(map);
+
+        if (ControlLayer._layers.length <= 5) {
+            ControlLayer.addOverlay(burningAreas, 'Burning Areas');
+        }
+
+        console.log(backendURL + "/process_data");
+        await loadForcastInBackground(parsedValues, parsedCoordinates);
     }
-
-    map.addLayer(markersCluster);
-
-    if (ControlLayer._layers.length <= 4) {
-        ControlLayer.addOverlay(markersCluster, 'Active Fires');
-    }
-
-    calculateBurningAreas();
-    burningAreas.addTo(map);
-
-    if (ControlLayer._layers.length <= 5) {
-        ControlLayer.addOverlay(burningAreas, 'Burning Areas');
-    }
-
-    console.log(backendURL + "/process_data");
-    await loadForcastInBackground(parsedValues, parsedCoordinates);
 }
+
 
 console.log("starting map...")
 getMap();

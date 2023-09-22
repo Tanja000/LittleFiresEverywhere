@@ -62,13 +62,15 @@ const markersCluster = L.markerClusterGroup({
 		});
 
 async function getModisData() {
+    console.log("starting with modis data");
     const drive_key = "a0ekhngww6y_XgKDEhXXbzuJb9fYzsjnPvFD1HECAH6M";
     const deta = Deta(drive_key);
     const drive = deta.Drive('modis_fire');
     const filename = 'MODIS_C6_1_Global_24h.kml'
 
     const response = await drive.get(filename);
-    modisDataActual = await response.text()
+    modisDataActual = await response.text();
+    console.log("got modis data");
 }
 
 function setEffiUrl(){
@@ -609,4 +611,3 @@ async function getDataFromKMLLayer(corner1, corner2){
 
 console.log("starting map...")
 getMap();
-

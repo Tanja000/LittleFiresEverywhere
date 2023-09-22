@@ -253,7 +253,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                     color: 'orange'
                 });
                 const slider = document.getElementById(idSlider);
-                slider.addEventListener('change', sliderChanged);
+                slider.addEventListener('input', sliderChanged);
                 if(!textLabel){
                     hullPolygon.closePopup();
                 }
@@ -271,7 +271,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
 
             const slider = document.getElementById(idSlider);
             if (slider) {
-                slider.addEventListener('change', sliderChanged);
+                slider.addEventListener('input', sliderChanged);
             }
 
 

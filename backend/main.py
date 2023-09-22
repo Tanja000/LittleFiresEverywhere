@@ -245,13 +245,6 @@ async def receive_data(coordinates: dict):
     return {"coordinates": response_dict, "meteo_data": meteo_dict}
 
 
-@app.get("/")
-async def create_feed():
-    print("test ...")
-    content = get_new_coordinate()
-    return content
-
-
 # Download alle 2 Stunden planen
 #getModisKml()
 schedule.every(3).hours.do(getModisKml)

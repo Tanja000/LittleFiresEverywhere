@@ -8,8 +8,6 @@ from datetime import datetime, timedelta
 import time
 import schedule
 from deta import Deta
-from fastkml import kml
-from fastapi.responses import JSONResponse
 
 
 api_url = "https://api.open-meteo.com/v1/forecast"
@@ -30,19 +28,42 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-drive_key = "a0ekhngww6y_XgKDEhXXbzuJb9fYzsjnPvFD1HECAH6M"
+drive_key = "a0g5kqh4m4i_VHKDKLqgj7m4Kpep1VTPer3Z3BpGtBwd"
 deta_drive = Deta(drive_key)
 deta_file = deta_drive.Drive("modis_fire")
-filename = 'MODIS_C6_1_Global_24h.kml'
+filename = 'MODIS_C6_1_Global_7d.csv'
 
 class ActionPayload(BaseModel):
     action: str
     value: int
     url: str
 
-def getModisKml():
-    url = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Global_24h.kml"
-    #dateiname = "../frontend/public/data/MODIS_C6_1_Global_24h.kml";
+def getModisCSV7days():
+    url = 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_7d.csv'
+
+    try:
+        response = urllib.request.urlopen(url)
+        html = response.read().decode('utf-8')
+        deta_file.put(filename, html)
+        print(f'Die HTML-Seite wurde erfolgreich im deta drive gespeichert.')
+    except Exception as e:
+        print(f'Fehler beim Speichern der HTML-Seite: {e}')
+
+    #file = "../frontend/public/data/MODIS_C6_1_Global_7d.csv"
+    #try:
+    #    response = urllib.request.urlopen(url)
+    #    html = response.read().decode('utf-8')
+    #    with open(file, 'w', encoding='utf-8') as datei:
+    #        datei.write(html)
+    #    print(f'Die HTML-Seite wurde erfolgreich im deta drive gespeichert.')
+
+    #except Exception as e:
+    #    print(f'Fehler beim Speichern der HTML-Seite: {e}')
+
+
+def getModisCSV24h():
+    url = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_24h.csv"
+    #dateiname = "../frontend/public/data/MODIS_C6_1_Global_24h.csv";
     try:
         response = urllib.request.urlopen(url)
         html = response.read().decode('utf-8')
@@ -175,6 +196,8 @@ def get_meteo_data(lat, lng, date, hour_no):
 def round_to_next_hour(time_str):
     from datetime import datetime, timedelta
     time_str = time_str.replace(" UTC", "")
+    time_str = time_str[time_str.index("T")+1:len(time_str)-3]
+
     time_obj = datetime.strptime(time_str, '%H:%M')
 
     if time_obj.minute >= 30:
@@ -245,9 +268,11 @@ async def receive_data(coordinates: dict):
     return {"coordinates": response_dict, "meteo_data": meteo_dict}
 
 
-# Download alle 2 Stunden planen
-#getModisKml()
-schedule.every(3).hours.do(getModisKml)
+# Download alle 3 Stunden planen
+#getModisCSV24h()
+getModisCSV7days()
+#schedule.every(3).hours.do(getModisCSV24h)
+schedule.every(3).hours.do(getModisCSV7days)
 
 if __name__ == '__main__':
     app.run(debug=True)

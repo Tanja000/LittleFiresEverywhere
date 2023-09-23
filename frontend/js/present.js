@@ -3,43 +3,46 @@ import {
     createWheelWaiting,
     handIcon,
     deleteWheelWaiting,
-    utcTimeToDate
 } from "./forcast.js";
-import {parseTime, getStartAndEndDate, parseDate, parseConfidence, parseCoordinates, getRectangleData,
-    fetchEffiKMLContent, fetchKMLContent, parseCDATA, responseDataManual} from "./present_helper.js";
+import {
+    getRectangleData, swapCoordinates,
+    pointToLayer, convertCSVTextToGeoJSONTimeDimension, extract24Hours, responseDataManual
+} from "./present_helper.js";
 
-//const { Deta } = require('deta');
-//import Deta from "./js_external/deta/dist/types/deta.d.ts";
-//import Deta from 'https://cdn.deta.space/js/deta@latest/deta.mjs'
-import { Deta, Drive } from 'https://cdn.deta.space/js/deta@latest/deta.mjs';
+import { Deta} from 'https://cdn.deta.space/js/deta@latest/deta.mjs';
 
 //////////////////////////////////////////////////////////////////
 /*change here for local application or deployment*/
-//const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
-const backendURL = "http://127.0.0.1:8000";
+const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
+//const backendURL = "http://127.0.0.1:8000";
 /*For deployment set to true!*/
-const EFfiData = true;
+const driveData = true;
 const weatherApi = true;
 //////////////////////////////////////////////////////////////////
 
-
-const activeFireConfidenceThreshold = 50;
 const modis_active_World = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Global_24h.kml";
-let effis_fires =  "";
+
+
 let map;
 let confidenceThreshhold = 90;
 let markers = [];
 let meteoDataAll = {};
 let dataCounter = 0;
-let day_start;
-let day_end;
 const originalZoom = 3;
 const originalCenter = [23, 8];
 let burningAreas = L.markerClusterGroup();
 let ControlLayer;
-let firesCoordinates = [];
 let firstTimeWheel = true;
-let modisDataActual;
+
+let timeSeries24hours;
+let modis7daysFinished = false;
+let zoomDeleted = false;
+let timeSeries7days;
+let timeDimensionControl;
+let geoJSONTimeSeries7days = null;
+let controlTimeSeriesSet = false;
+let controlMarkersSet = false;
+let controlAreasSet = false;
 
 const popupOptions = {
             'maxWidth': '500',
@@ -61,22 +64,45 @@ const markersCluster = L.markerClusterGroup({
 			zoomToBoundsOnClick: true
 		});
 
-async function getModisData() {
+async function getModis7daysDataFromDrive() {
     console.log("starting with modis data");
-    const drive_key = "a0ekhngww6y_XgKDEhXXbzuJb9fYzsjnPvFD1HECAH6M";
+    const drive_key = "a0g5kqh4m4i_VHKDKLqgj7m4Kpep1VTPer3Z3BpGtBwd";
     const deta = Deta(drive_key);
     const drive = deta.Drive('modis_fire');
-    const filename = 'MODIS_C6_1_Global_24h.kml'
+    const filename = 'MODIS_C6_1_Global_7d.csv'
 
     const response = await drive.get(filename);
-    modisDataActual = await response.text();
+    const csvData = await response.text();
+    timeSeries7days = convertCSVTextToGeoJSONTimeDimension(csvData);
+    timeSeries24hours = extract24Hours(timeSeries7days);
+    modis7daysFinished = true;
     console.log("got modis data");
 }
 
-function setEffiUrl(){
-    [day_start, day_end] = getStartAndEndDate();
-    effis_fires = "https://maps.effis.emergency.copernicus.eu/gwis?LAYERS=modis.hs&FORMAT=kml&TRANSPARENT=true&SINGLETILE=true&SERVICE=wms&VERSION=1.1.1&REQUEST=GetMap&STYLES=&SRS=EPSG:4326&BBOX=-18.0,27.0,42.0,72.0&WIDTH=1600&HEIGHT=1200&TIME=" + day_start + "/" + day_end;
+
+async function getModis7daysData(){
+    //latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,confidence,version,bright_t31,frp,daynight
+    console.log("start reading 7 days data");
+    const url= "/data/MODIS_C6_1_Global_7d.csv";
+    return fetch(url)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Network response was not ok (${response.status})`);
+      }
+      return response.text();
+    })
+    .then(async (csvData) => {
+        timeSeries7days = convertCSVTextToGeoJSONTimeDimension(csvData);
+        timeSeries24hours = extract24Hours(timeSeries7days);
+        modis7daysFinished = true;
+        console.log("7 days modis data ready!")
+
+    })
+    .catch((error) => {
+      console.error('Fehler beim Laden der CSV-Datei:', error);
+    });
 }
+
 
 
 function deletePopup(){
@@ -88,7 +114,6 @@ function deletePopup(){
 }
 
 async function getMap() {
-
 
   /*  const osm = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 21,
@@ -128,7 +153,9 @@ async function getMap() {
     const bounds = L.latLngBounds(minLatLng, maxLatLng);
     map.setMaxBounds(bounds);
     map.on('drag', () => {
-        map.panInsideBounds(bounds, { animate: false });
+        deleteZoomLayers();
+        deleteZoom();
+        handleZoomChange();
     });
 
     Esri_WorldTopoMap.addTo(map);
@@ -228,15 +255,20 @@ async function getMap() {
 
         async function startClick() {
             const bounds = rectangle.getBounds();
-            let corner1 = bounds.getSouthWest();
-            let corner2 = bounds.getNorthEast();
-
             map.removeLayer(rectangle);
             map.removeLayer(textLabel);
 
-            getDataFromKMLLayer(corner1, corner2);
-        }
+            map.setView(center, 4);
 
+            while (modis7daysFinished == false) {
+                    setTimeout(function () {
+                        console.log("wait for 3 seconds")
+                    }, 3000);
+            }
+
+            get24hoursLayer(bounds);
+            await loadForcastInBackground(bounds);
+        }
         textLabel.on('click', startClick);
         rectangle.on('click', startClick);
     });
@@ -299,25 +331,127 @@ async function getMap() {
             }
         }).addTo(map);
 
-      await getModisData();
+      map.on('zoomend', handleZoomChange);
+      if(driveData) {
+          await getModis7daysDataFromDrive();
+      }
+      else {
+          await getModis7daysData();
+      }
+}
+
+function deleteZoom(){
+    const elements = document.getElementsByClassName("leaflet-bar leaflet-bar-horizontal leaflet-bar-timecontrol leaflet-control");
+    while (elements.length > 0) {
+        elements[0].parentNode.removeChild(elements[0]);
+    }
+    zoomDeleted = false;
+}
+function deleteZoomLayers(){
+    if (geoJSONTimeSeries7days !== null) {
+        map.removeLayer(geoJSONTimeSeries7days);
+        geoJSONTimeSeries7days = null;
+    }
 }
 
 
 
+function get24hoursLayer(bounds){
+    timeSeries24hours.features.forEach(function(feature) {
+        const coordinate = feature.geometry.coordinates;
+        const point = L.latLng(coordinate[1], coordinate[0]);
+        if (bounds.contains(point)) {
+            const properties = feature.properties;
+            let marker = iconsAtFireOrigin("MODIS FIRE", [coordinate[1], coordinate[0]], properties.confidence, properties.date, properties.time);
+            markers.push(marker);
+        }
+    });
 
-function iconsAtFireOrigin(title, location, confidence, dateAquired, time){
+    if (!controlMarkersSet) {
+        ControlLayer.addOverlay(markersCluster, 'Active Fires');
+        controlMarkersSet = true;
+    }
+    map.addLayer(markersCluster);
+
+    calculateBurningAreas(bounds);
+}
+
+
+async function handleZoomChange(){
+    const currentZoom = map.getZoom();
+
+     if(currentZoom < 7) {
+         deleteZoom();
+         deleteZoomLayers();
+     }
+
+     if (currentZoom >= 7) {
+         while (modis7daysFinished == false) {
+             setTimeout(function () {
+                 console.log("wait for 3 seconds")
+             }, 3000);
+         }
+
+         if(!zoomDeleted) {
+              var timeDimension = new L.TimeDimension({
+                 period: "PT1H",
+             });
+             map.timeDimension = timeDimension;
+
+             var player = new L.TimeDimension.Player({
+                 transitionTime: 100,
+                 loop: false,
+                 startOver: true
+             }, timeDimension);
+             var timeDimensionControlOptions = {
+                 player: player,
+                 timeDimension: timeDimension,
+                 position: 'bottomleft',
+                 autoPlay: true,
+                 minSpeed: 1,
+                 speedStep: 1,
+                 maxSpeed: 15,
+                 timeSliderDragUpdate: true
+             };
+             timeDimensionControl = new L.Control.TimeDimension(timeDimensionControlOptions);
+             map.addControl(timeDimensionControl);
+
+             let timeSeriesLayer = L.geoJSON(timeSeries7days, {
+                 pointToLayer: pointToLayer,
+                 filter: function (feature) {
+                     return map.getBounds().contains(L.geoJSON(feature).getBounds());
+                 }
+             });
+
+             geoJSONTimeSeries7days = L.timeDimension.layer.geoJson(timeSeriesLayer, {updateTimeDimensionMode: 'replace'});
+             geoJSONTimeSeries7days.addTo(map)
+
+
+             if (!controlTimeSeriesSet) {
+                ControlLayer.addOverlay(geoJSONTimeSeries7days, 'Timeseries');
+                controlTimeSeriesSet = true;
+            }
+
+             zoomDeleted = true;
+         }
+     }
+}
+
+function iconsAtFireOrigin(title, coordinates, confidence, date, time){
     const customIcon = L.icon({
         iconUrl: './icons/fire.png',
         iconSize: [32, 32],
         iconAnchor: [0, 0],
         popupAnchor: [0, -32]
     });
-    const dateAndTime = utcTimeToDate(dateAquired, time);
 
-    const marker = L.marker([location.longitude, location.latitude], {icon: customIcon});
+    const localDate = new Date(time);
+    const dateAndTime = localDate.toString();
+
+    const marker = L.marker(coordinates, {icon: customIcon});
     const popupContent = title + "<br> <br> " + dateAndTime +
         " <br> <br> Confidence: " + confidence +
-        " <br> <br> Coordinates: [" + location.longitude +", " + location.latitude + "]";
+        " <br> <br> Coordinates: " + coordinates;
        //+ " <br> <br>  <br> <a style='color: black' href='https://www.earthdata.nasa.gov/learn/find-data/near-real-time/firms' target='_blank'> <b>More Info </b> </a> ";
     marker.bindPopup(popupContent,  popupOptions);
     markersCluster.addLayer(marker);
@@ -326,97 +460,72 @@ function iconsAtFireOrigin(title, location, confidence, dateAquired, time){
 }
 
 
-function processKMLData(corner1, corner2, addFireMarker){
-        let parsedValues = {};
-          const parser = new DOMParser();
-          let  xmlDoc = parser.parseFromString(modisDataActual, 'text/xml');
-          const descLength = xmlDoc.getElementsByTagName("description").length;
-          let parsedCoordinates = {};
-          let count = 0;
-          for (let i = 0; i < descLength; i++) {
-            //  if(count>=2){break;}
-              const description = xmlDoc.getElementsByTagName("description")[i].innerHTML;
-              const confidence = parseConfidence(description);
-              const dateAquired = parseDate(description);
-              const time = parseTime(description);
-             let coordinatesDiv = xmlDoc.getElementsByTagName("coordinates")[i];
-              if (coordinatesDiv != null) {
-                } else {
-                  console.log("data with null detected");
-                  continue;
-                }
-              let coordinates = xmlDoc.getElementsByTagName("coordinates")[i].innerHTML;
-              parsedValues = parseCoordinates(coordinates);
-
-              if(parsedValues.longitude > corner1.lat && parsedValues.longitude < corner2.lat && parsedValues.latitude > corner1.lng && parsedValues.latitude < corner2.lng){
-                  parsedCoordinates = getRectangleData(confidenceThreshhold, confidence, parsedValues, dateAquired, time, count, parsedCoordinates);
-
-                  if (confidence >= activeFireConfidenceThreshold && addFireMarker) {
-                      let fireCoord = [parsedValues['latitude'], parsedValues["longitude"]];
-                      firesCoordinates.push(fireCoord);
-                      let marker = iconsAtFireOrigin("MODIS FIRE", parsedValues, confidence, dateAquired, time);
-                      markers.push(marker);
-                      count++;
-                  }
-              }
-
-              let desc = xmlDoc.getElementsByTagName("description")[i].innerHTML;
-              desc = parseCDATA(desc);
-              xmlDoc.getElementsByTagName("description")[i].innerHTML = desc;
-          }
-
-          if(Object.keys(parsedCoordinates).length === 0){
-              console.log("no Data");
-               if(confidenceThreshhold >= 80){
-                    confidenceThreshhold -= 5;
-                    [parsedValues, parsedCoordinates] = processKMLData(corner1, corner2, false);
-                }
-               else {
-                   deleteWheelWaiting();
-                   console.log("FINISHED");
-                   return [parsedValues, parsedCoordinates];
-               }
-          }
-          confidenceThreshhold = 90;
-          return [parsedValues, parsedCoordinates];
-}
-
-function processEffiKMLData(kmlData, corner1, corner2) {
-    let count = 0;
-    let parsedValues = {};
+async function loadForcastInBackground(bounds){
     let parsedCoordinates = {};
-    const parser = new DOMParser();
-    let  xmlDoc = parser.parseFromString(kmlData, 'text/xml');
-    const descLength = xmlDoc.getElementsByTagName("Placemark").length;
-    for (let i = 0; i < descLength; i++) {
-        const description = "Effi - Modis Fire";
-        const confidence = 90;
-        const dateAquired = day_start;
-        const time = "00:00 UTC";
-        let coordinates = xmlDoc.getElementsByTagName("coordinates")[i].innerHTML;
-        parsedValues = parseCoordinates(coordinates);
-        if (parsedValues.longitude > corner1.lat && parsedValues.longitude < corner2.lat && parsedValues.latitude > corner1.lng && parsedValues.latitude < corner2.lng) {
-            parsedCoordinates = getRectangleData(confidenceThreshhold, confidence, parsedValues, dateAquired, time, count, parsedCoordinates);
-            let marker = iconsAtFireOrigin("MODIS FIRE from EFFI", parsedValues, confidence, dateAquired, time);
-            markers.push(marker);
-            count++;
+    let counterData = 0;
+
+    timeSeries24hours.features.forEach(function(feature) {
+        const properties = feature.properties;
+        const geometry = feature.geometry.coordinates;
+        parsedCoordinates = getRectangleData(confidenceThreshhold, [geometry[1], geometry[0]], properties.confidence, properties.date, properties.time, counterData, parsedCoordinates, bounds);
+        counterData++;
+    });
+
+    let dataLength = Object.keys(parsedCoordinates).length;
+    if (dataLength == 0){
+        deleteWheelWaiting();
+        return;
+    }
+    let lastCall = false;
+
+    if(firstTimeWheel){
+        createWheelWaiting(map);
+        firstTimeWheel = false;
+    }
+
+    //if less or equal than 4 fires for forecast
+    if (dataLength <= 4){
+        await processAndMapData(parsedCoordinates, true);
+        return;
+    }
+
+    let tempDict = {};
+    let counter = 0;
+    let entireCount = 0;
+
+    // more than 4 fires for forecast
+    for (const key in parsedCoordinates) {
+        tempDict[key] = parsedCoordinates[key];
+        counter++;
+
+        //process 4 fires and map those
+        if (counter === 4 || dataLength === counter) {
+            if(entireCount === dataLength - 1){
+                lastCall = true;
+            }
+            else {lastCall = false;}
+            await processAndMapData(tempDict, lastCall);
+            tempDict = {};
+            counter = 0;
         }
+
+        if (entireCount === dataLength - 1 && counter !== 0){
+            await processAndMapData(tempDict, true);
+            return;
+        }
+        entireCount++;
     }
-    if(Object.keys(parsedCoordinates).length === 0){
-        console.log("no Data");
-        return parsedValues;
-    }
-    return [parsedValues, parsedCoordinates];
+
 }
 
-
-async function processAndMapData(parsedValues, parsedCoordinates, lastCall) {
+async function processAndMapData(parsedCoordinates, lastCall) {
     let responseDataAll = {};
     let responseData = {};
     let coordinatesData = {};
     let meteoData = {};
     if(weatherApi) {
         try {
+            console.log(backendURL + "/process_data");
             const response = await fetch(backendURL + "/process_data", {
                 method: "POST",
                 mode: 'cors',
@@ -437,7 +546,7 @@ async function processAndMapData(parsedValues, parsedCoordinates, lastCall) {
             }
         }
     }
-    else{
+     else{
         responseData = responseDataManual;
     }
     coordinatesData = responseData['coordinates'];
@@ -446,70 +555,29 @@ async function processAndMapData(parsedValues, parsedCoordinates, lastCall) {
     meteoDataAll[dataCounter] = meteoData;
     await getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer, lastCall);
     dataCounter++;
-    return parsedValues;
+    return;
 }
 
 
-async function catchMODISArchiveData(kmlData, corner1, corner2) {
-    let parsedCoordinates = {};
-    let parsedValues = {};
-    try {
-        kmlData = await fetchKMLContent(modis_backup_World);
-        [parsedValues, parsedCoordinates] = processKMLData(kmlData, corner1, corner2, true);
-    } catch (error) {
-        console.error(error);
-    }
-    confidenceThreshhold = 90;
-    return [parsedValues, parsedCoordinates]
-}
-
-async function loadForcastInBackground(parsedValues, parsedCoordinates) {
-    const coordinatesLength = Object.keys(parsedCoordinates).length;
-    let lastCall = false;
-    //if less or equal than 4 fires for forecast
-    if ( coordinatesLength <= 4){
-        await processAndMapData(parsedValues, parsedCoordinates, true);
-        return;
-    }
-
-    let tempDict = {};
-    let count = 0;
-    let entireCount = 0;
-
-    // more than 4 fires for forecast
-    for (const key in parsedCoordinates) {
-        tempDict[key] = parsedCoordinates[key];
-        count++;
-
-        //process 4 fires and map those
-        if (count === 4 || coordinatesLength === count) {
-            if(entireCount === coordinatesLength - 1){
-                lastCall = true;
-            }
-            else {lastCall = false;}
-            await processAndMapData(parsedValues, tempDict, lastCall);
-            tempDict = {};
-            count = 0;
+function calculateBurningAreas(bounds){
+    let featureGroups = {};
+    let coordinatesAll = [];
+    timeSeries24hours.features.forEach(function(feature) {
+        const coordinate = feature.geometry.coordinates;
+        const point = L.latLng(coordinate[1], coordinate[0]);
+        if (bounds.contains(point)) {
+            coordinatesAll.push(coordinate);
         }
+    });
+     var turfPoints = coordinatesAll.map(function(coordinate) {
+      return turf.point(coordinate);
+    });
 
-        if (entireCount === coordinatesLength - 1 && count !== 0){
-            await processAndMapData(parsedValues, tempDict, true);
-            return;
-        }
-        entireCount++;
-    }
-}
+    const options = {units: 'kilometers', cluster: true};
+    const featureCollectionTurf = turf.featureCollection(turfPoints);
+    const nearestPoints = turf.clustersDbscan(featureCollectionTurf, 5, options);
 
-function calculateBurningAreas(){
-    const maxDistance = 5;
-
-    const featureGroups = {};
-
-    if (firesCoordinates.length > 4) {
-        const points = firesCoordinates.map(coord => turf.point(coord));
-        const featureCollection = turf.featureCollection(points);
-        const nearestPoints = turf.clustersDbscan(featureCollection , maxDistance);
-        nearestPoints.features.forEach(cluster => {
+    nearestPoints.features.forEach(cluster => {
             const prop = cluster.properties;
             if ("cluster" in prop){
                 const groupProperty = prop.cluster;
@@ -519,7 +587,7 @@ function calculateBurningAreas(){
                 featureGroups[groupProperty].push(cluster);
             }
         });
-    }
+
 
     for (let [key, value] of Object.entries(featureGroups)){
         const polyCoordinates = [];
@@ -546,68 +614,15 @@ function calculateBurningAreas(){
             });
 
             burningAreas.addLayer(leafletPolygon);
+            burningAreas.addTo(map);
+
+            if (!controlAreasSet) {
+                ControlLayer.addOverlay(burningAreas, 'Burning Areas');
+                controlAreasSet = true;
+            }
         }
     }
 }
-
-
-async function getDataFromKMLLayer(corner1, corner2){
-
-    let parsedValues = {};
-    let parsedCoordinates = {};
-    if (!modisDataActual || modisDataActual.length === 0){
-        if(firstTimeWheel){
-            createWheelWaiting(map);
-            firstTimeWheel = false;
-        }
-        setTimeout(function() {
-        console.log("wait for 3 seconds");
-        getDataFromKMLLayer(corner1, corner2)}, 3000);
-    }
-    else {
-        if(firstTimeWheel){
-            createWheelWaiting(map);
-            firstTimeWheel = false;
-        }
-        if (modisDataActual.length < 500) {
-            console.log("no Modis data");
-            //try effis data first!
-            if (EFfiData) {
-                try {
-                    setEffiUrl();
-                    modisDataActual = await fetchEffiKMLContent(effis_fires);
-                    [parsedValues, parsedCoordinates] = processEffiKMLData(modisDataActual, corner1, corner2);
-                } catch (error) {
-                    console.error(error);
-                }
-            }
-            //archive Modis Data if both kml not available
-            const parsedValuesLength = Object.keys(parsedValues).length;
-            if (parsedValuesLength == 0) {
-                [parsedValues, parsedCoordinates] = catchMODISArchiveData(modisDataActual, corner1, corner2)
-            }
-        } else {
-            [parsedValues, parsedCoordinates] = processKMLData(corner1, corner2, true);
-        }
-
-        map.addLayer(markersCluster);
-
-        if (ControlLayer._layers.length <= 4) {
-            ControlLayer.addOverlay(markersCluster, 'Active Fires');
-        }
-
-        calculateBurningAreas();
-        burningAreas.addTo(map);
-
-        if (ControlLayer._layers.length <= 5) {
-            ControlLayer.addOverlay(burningAreas, 'Burning Areas');
-        }
-
-        console.log(backendURL + "/process_data");
-        await loadForcastInBackground(parsedValues, parsedCoordinates);
-    }
-}
-
 
 console.log("starting map...")
 getMap();

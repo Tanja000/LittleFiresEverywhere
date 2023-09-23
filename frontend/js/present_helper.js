@@ -1,4 +1,4 @@
-
+export let dates = [];
 
 export function parseTime(text){
     const index = text.indexOf('Time');
@@ -85,8 +85,22 @@ export async function fetchEffiKMLContent(kmlUrl) {
   return kmlContent;
 }
 
+export function getRectangleData(confidenceThreshhold, coordinate, confidence, date, time, count, parsedCoordinates, bounds){
+    if(confidence >= confidenceThreshhold) {
+        if (bounds.contains(L.latLng(coordinate))) {
+            let rectangleValues = {};
+            rectangleValues["latitude"] = coordinate[1];
+            rectangleValues["longitude"] = coordinate[0];
+            rectangleValues["confidence"] = confidence;
+            rectangleValues["dateAquired"] = date;
+            rectangleValues["time"] = time;
+            parsedCoordinates[count] = rectangleValues;
+        }
+    }
+    return parsedCoordinates
+}
 
-export function getRectangleData(confidenceThreshhold, confidence, parsedValues, dateAquired, time, count, parsedCoordinates){
+export function getRectangleData2(confidenceThreshhold, confidence, parsedValues, dateAquired, time, count, parsedCoordinates){
     if(confidence >= confidenceThreshhold) {
         let rectangleValues = parsedValues;
         rectangleValues["confidence"] = confidence;
@@ -286,3 +300,112 @@ export const responseDataManual = {
         }
     }
 };
+
+
+function validateGeoJSON(geoJSON) {
+
+  if (!geoJSON) {
+    return 'GeoJSON-Objekt fehlt.';
+  }
+
+  if (geoJSON.type !== 'FeatureCollection') {
+    return 'Das GeoJSON-Objekt muss vom Typ "FeatureCollection" sein.';
+  }
+
+  if (!Array.isArray(geoJSON.features)) {
+    return 'Das GeoJSON-Objekt muss ein Array von Features enthalten.';
+  }
+
+  for (const feature of geoJSON.features) {
+    if (feature.type !== 'Feature') {
+      return 'Jedes Feature im GeoJSON muss vom Typ "Feature" sein.';
+    }
+
+    if (!feature.geometry) {
+      return 'Jedes Feature im GeoJSON muss eine "geometry"-Eigenschaft haben.';
+    }
+
+    if (!feature.properties) {
+      return 'Jedes Feature im GeoJSON muss eine "properties"-Eigenschaft haben.';
+    }
+  }
+
+  return 'Das GeoJSON-Objekt ist gültig.';
+}
+
+export function extract24Hours(timeSeries7days){
+    var filteredFeatures = {
+      "type": "FeatureCollection",
+      "features": []
+    };
+
+    for (var i = 0; i < timeSeries7days.features.length; i++) {
+      var feature = timeSeries7days.features[i];
+
+      if (feature.properties.date === dates[8] || feature.properties.date === dates[7]) {
+        filteredFeatures.features.push(feature);
+      }
+    }
+    return filteredFeatures;
+}
+
+export function swapCoordinates(featureCollection) {
+  featureCollection.features.forEach(function (feature) {
+    if (feature.geometry && feature.geometry.coordinates) {
+      var temp = feature.geometry.coordinates[0]; // Temporäre Variable für das Vertauschen
+      feature.geometry.coordinates[0] = feature.geometry.coordinates[1];
+      feature.geometry.coordinates[1] = temp;
+    }
+  });
+}
+
+export function convertCSVTextToGeoJSONTimeDimension(csvText){
+    let geoJSON = {type: 'FeatureCollection', features: []};
+    let lines = csvText.trim().split('\n');
+    //lines = lines.slice(0, 1000);
+    const headers = lines[0].split(',');
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',');
+        if (values.length === headers.length) {
+            const latitude = parseFloat(values[1]);
+            const longitude = parseFloat(values[0]);
+
+            if (!isNaN(latitude) && !isNaN(longitude)) {
+                const properties = {
+                    // brightness: values[2],
+                    date: values[5],
+                    time: values[5] + "T" + values[6].substring(0,2) + ":" + values[6].substring(2,4) + ":00",
+                    confidence: values[8],
+                    //frp: values[10],
+                    //daynight: values[11]
+                };
+
+                if (dates.indexOf(values[5]) === -1){
+                    dates.push(values[5]);
+                }
+
+                const geometry = {
+                    type: 'Point',
+                    coordinates: [latitude, longitude],
+                };
+                geoJSON.features.push({
+                    type: 'Feature',
+                    properties: properties,
+                    geometry: geometry,
+                });
+            }
+        }
+    }
+    return geoJSON;
+}
+
+
+export function pointToLayer(feature, latlng) {
+  return L.circleMarker(latlng, {
+    radius: 5,
+    color: 'red',
+    fillColor: 'red',
+    fillOpacity: 0.5,
+    opacity: 1,
+  });
+}

@@ -333,7 +333,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
                 forcastPolygons.addLayer(textLabel);
                 forcastPolygons.addTo(map);
 
-                if (ControlLayer._layers.length <= 6 && !forecastControl) {
+                if (!forecastControl) {
                     ControlLayer.addOverlay(forcastPolygons, "Forecast");
                     forecastControl = true;
                 }
@@ -393,7 +393,6 @@ export async function getForcastLayer(responseData, map, meteoData, ControlLayer
             const first = Object.values(response[key]);
             if(first.length > 0) {
                 firstCoordinate = Object.values(first['0']);
-              //  addRedCircleToIcon(firstCoordinate[0], firstCoordinate[1], map);
             }
 
         }

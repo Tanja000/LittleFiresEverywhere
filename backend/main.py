@@ -8,16 +8,20 @@ from datetime import datetime, timedelta
 import time
 import schedule
 from deta import Deta
+import pandas as pd
+from io import StringIO
+import numpy as np
 
 
-api_url = "https://api.open-meteo.com/v1/forecast"
-
-# no slash at back of url!
+####################
+#chane for deployment
 origins = [
     # Tanja TODO: local host später löschen!!!
     "http://127.0.0.1:4201",
     "https://wildfires-1-f7510945.deta.app"
 ]
+###############################
+api_url = "https://api.open-meteo.com/v1/forecast"
 
 app = FastAPI()
 app.add_middleware(
@@ -38,27 +42,28 @@ class ActionPayload(BaseModel):
     value: int
     url: str
 
+
 def getModisCSV7days():
+    # latitude, longitude, brightness, scan, track, acq_date, acq_time, satellite, confidence, version, bright_t31, frp, daynight
     url = 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_7d.csv'
+    spalten_zu_behalten = ['latitude', 'longitude', 'acq_date', 'acq_time', 'confidence']
+    #local_file = 'data/MODIS_C6_1_Global_7d.csv'
 
     try:
-        response = urllib.request.urlopen(url)
-        html = response.read().decode('utf-8')
-        deta_file.put(filename, html)
+        df = pd.read_csv(url, usecols=spalten_zu_behalten, encoding='utf-8')
+        #df_csv = df.to_csv(local_file, index=False, encoding="utf-8")
+        #df = pd.read_csv(local_file)
+        df['acq_time'] = df['acq_time'].astype(str).str.rjust(4, '0')
+        numpy_array = df.to_numpy()
+        numpy_array = np.vstack([spalten_zu_behalten, numpy_array])
+        csv_text = StringIO()
+        np.savetxt(csv_text, numpy_array, delimiter=',', fmt='%s')
+        csv_string = csv_text.getvalue()
+
+        deta_file.put(filename, csv_string)
         print(f'Die HTML-Seite wurde erfolgreich im deta drive gespeichert.')
     except Exception as e:
         print(f'Fehler beim Speichern der HTML-Seite: {e}')
-
-    #file = "../frontend/public/data/MODIS_C6_1_Global_7d.csv"
-    #try:
-    #    response = urllib.request.urlopen(url)
-    #    html = response.read().decode('utf-8')
-    #    with open(file, 'w', encoding='utf-8') as datei:
-    #        datei.write(html)
-    #    print(f'Die HTML-Seite wurde erfolgreich im deta drive gespeichert.')
-
-    #except Exception as e:
-    #    print(f'Fehler beim Speichern der HTML-Seite: {e}')
 
 
 def getModisCSV24h():
@@ -270,9 +275,9 @@ async def receive_data(coordinates: dict):
 
 # Download alle 3 Stunden planen
 #getModisCSV24h()
-getModisCSV7days()
+#getModisCSV7days()
 #schedule.every(3).hours.do(getModisCSV24h)
-schedule.every(3).hours.do(getModisCSV7days)
+#schedule.every(3).hours.do(getModisCSV7days)
 
 if __name__ == '__main__':
     app.run(debug=True)

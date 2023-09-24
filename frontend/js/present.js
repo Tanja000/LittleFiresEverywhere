@@ -5,7 +5,7 @@ import {
     deleteWheelWaiting,
 } from "./forcast.js";
 import {
-    getRectangleData, swapCoordinates,
+    getRectangleData,
     pointToLayer, convertCSVTextToGeoJSONTimeDimension, extract24Hours, responseDataManual
 } from "./present_helper.js";
 
@@ -34,15 +34,15 @@ let burningAreas = L.markerClusterGroup();
 let ControlLayer;
 let firstTimeWheel = true;
 
-let timeSeries24hours;
-let modis7daysFinished = false;
+let timeSeries24hours = null;
 let zoomDeleted = false;
-let timeSeries7days;
+let timeSeries7days = null;
 let timeDimensionControl;
 let geoJSONTimeSeries7days = null;
 let controlTimeSeriesSet = false;
 let controlMarkersSet = false;
 let controlAreasSet = false;
+let timeDimension;
 
 const popupOptions = {
             'maxWidth': '500',
@@ -75,13 +75,11 @@ async function getModis7daysDataFromDrive() {
     const csvData = await response.text();
     timeSeries7days = convertCSVTextToGeoJSONTimeDimension(csvData);
     timeSeries24hours = extract24Hours(timeSeries7days);
-    modis7daysFinished = true;
     console.log("got modis data");
 }
 
 
 async function getModis7daysData(){
-    //latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,confidence,version,bright_t31,frp,daynight
     console.log("start reading 7 days data");
     const url= "/data/MODIS_C6_1_Global_7d.csv";
     return fetch(url)
@@ -94,7 +92,6 @@ async function getModis7daysData(){
     .then(async (csvData) => {
         timeSeries7days = convertCSVTextToGeoJSONTimeDimension(csvData);
         timeSeries24hours = extract24Hours(timeSeries7days);
-        modis7daysFinished = true;
         console.log("7 days modis data ready!")
 
     })
@@ -141,11 +138,34 @@ async function getMap() {
            transparent: true
        });*/
 
+     timeDimension = new L.TimeDimension({
+        fullscreenControl: true,
+        timeDimensionControl: true,
+        timeDimensionControlOptions: {
+        position: 'bottomleft',
+        autoPlay: true,
+        timeSlider: false,
+        loopButton: true,
+        playerOptions: {
+            transitionTime: 125,
+            loop: true,
+        }
+    },
+    timeDimension: true,
+    });
+
     map = L.map('map', {
         center: originalCenter,
         zoom: originalZoom,
-        layers: [Esri_WorldTopoMap]
+        layers: [Esri_WorldTopoMap],
     });
+    map.timeDimension = timeDimension;
+
+
+    const elements = document.getElementsByClassName("leaflet-bar leaflet-bar-horizontal leaflet-bar-timecontrol leaflet-control");
+    while (elements.length > 0) {
+        elements[0].parentNode.removeChild(elements[0]);
+    }
     map.setMinZoom(3);
 
     const minLatLng = L.latLng(-90, -180);
@@ -254,17 +274,18 @@ async function getMap() {
 
 
         async function startClick() {
+            if (timeSeries7days === null) {
+                console.log("wait for 3 seconds");
+                setTimeout(function () {
+                    startClick();
+                }, 3000);
+            }
+
             const bounds = rectangle.getBounds();
             map.removeLayer(rectangle);
             map.removeLayer(textLabel);
 
             map.setView(center, 4);
-
-            while (modis7daysFinished == false) {
-                    setTimeout(function () {
-                        console.log("wait for 3 seconds")
-                    }, 3000);
-            }
 
             get24hoursLayer(bounds);
             await loadForcastInBackground(bounds);
@@ -357,6 +378,12 @@ function deleteZoomLayers(){
 
 
 function get24hoursLayer(bounds){
+    if (timeSeries24hours === null) {
+        console.log("wait for 3 seconds")
+        setTimeout(function () {
+            get24hoursLayer(bounds);
+        }, 3000);
+    }
     timeSeries24hours.features.forEach(function(feature) {
         const coordinate = feature.geometry.coordinates;
         const point = L.latLng(coordinate[1], coordinate[0]);
@@ -386,55 +413,71 @@ async function handleZoomChange(){
      }
 
      if (currentZoom >= 7) {
-         while (modis7daysFinished == false) {
+         if (timeSeries7days === null) {
+             console.log("wait for 3 seconds");
              setTimeout(function () {
-                 console.log("wait for 3 seconds")
+                 handleZoomChange();
              }, 3000);
          }
 
          if(!zoomDeleted) {
-              var timeDimension = new L.TimeDimension({
-                 period: "PT1H",
-             });
-             map.timeDimension = timeDimension;
-
-             var player = new L.TimeDimension.Player({
-                 transitionTime: 100,
-                 loop: false,
-                 startOver: true
-             }, timeDimension);
-             var timeDimensionControlOptions = {
-                 player: player,
-                 timeDimension: timeDimension,
-                 position: 'bottomleft',
-                 autoPlay: true,
-                 minSpeed: 1,
-                 speedStep: 1,
-                 maxSpeed: 15,
-                 timeSliderDragUpdate: true
-             };
-             timeDimensionControl = new L.Control.TimeDimension(timeDimensionControlOptions);
-             map.addControl(timeDimensionControl);
-
-             let timeSeriesLayer = L.geoJSON(timeSeries7days, {
-                 pointToLayer: pointToLayer,
-                 filter: function (feature) {
-                     return map.getBounds().contains(L.geoJSON(feature).getBounds());
-                 }
-             });
-
-             geoJSONTimeSeries7days = L.timeDimension.layer.geoJson(timeSeriesLayer, {updateTimeDimensionMode: 'replace'});
-             geoJSONTimeSeries7days.addTo(map)
-
-
-             if (!controlTimeSeriesSet) {
-                ControlLayer.addOverlay(geoJSONTimeSeries7days, 'Timeseries');
-                controlTimeSeriesSet = true;
-            }
-
-             zoomDeleted = true;
+              gettimeDimension();
          }
      }
+}
+
+function gettimeDimension(){
+    const player = new L.TimeDimension.Player({
+        transitionTime: 100,
+        loop: false,
+        startOver: true
+    }, timeDimension);
+
+    var timeDimensionControlOptions = {
+        player: player,
+        autoPlay: true,
+        minSpeed: 1,
+        speedStep: 1,
+        maxSpeed: 15,
+        timeSliderDragUpdate: true,
+    };
+
+    timeDimensionControl = new L.Control.TimeDimension(timeDimensionControlOptions);
+    map.addControl(timeDimensionControl);
+
+    let timeSeriesLayer = L.geoJSON(timeSeries7days, {
+        pointToLayer: pointToLayer,
+        filter: function (feature) {
+            return map.getBounds().contains(L.geoJSON(feature).getBounds());
+        }
+    });
+
+    geoJSONTimeSeries7days = L.timeDimension.layer.geoJson(timeSeriesLayer, {
+        updateTimeDimension: true,
+        updateTimeDimensionMode: 'replace',
+        addlastPoint: false,
+        duration: 'PT20M',
+    });
+    geoJSONTimeSeries7days.addTo(map)
+
+
+    if (!controlTimeSeriesSet) {
+        ControlLayer.addOverlay(geoJSONTimeSeries7days , 'Timeseries');
+        map.on('overlayadd', function (e) {
+            if (e.layer === geoJSONTimeSeries7days) {
+                timeDimensionControl.addTo(map);
+            }
+        });
+
+        map.on('overlayremove', function (e) {
+            if (e.layer === geoJSONTimeSeries7days) {
+                map.removeControl(timeDimensionControl);
+            }
+        });
+        controlTimeSeriesSet = true;
+    }
+
+    zoomDeleted = true;
 }
 
 function iconsAtFireOrigin(title, coordinates, confidence, date, time){

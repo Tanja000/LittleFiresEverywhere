@@ -1,89 +1,7 @@
 export let dates = [];
 
-export function parseTime(text){
-    const index = text.indexOf('Time');
-    if (index !== -1) {
-        return text.substring(index + 6, index + 15);
-    }
-    return null;
-}
 
 
-export function getStartAndEndDate(){
-    const day = new Date();
-    const today = new Date(day);
-    today.setDate(today.getDate());
-    const dayBeforeYesterday = new Date(day);
-    dayBeforeYesterday.setDate(day.getDate() - 2);
-    const formattedToday = formatDate(today);
-    const formattedDayBeforeYesterday = formatDate(dayBeforeYesterday);
-    console.log(formattedDayBeforeYesterday + " - " + formattedToday);
-    return [formattedDayBeforeYesterday, formattedToday];
-}
-
-export function formatDate(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-
-export function parseDate(text){
-    const index = text.indexOf('Date Acquired');
-    if (index !== -1) {
-        return text.substring(index + 16, index + 26);
-    }
-    return null;
-}
-
-export function parseConfidence(text){
-    const index = text.indexOf('Confidence');
-    if (index !== -1) {
-        return parseInt(text.substring(index + 21, index + 23));
-    }
-    return null;
-}
-
-export function parseCoordinates(text) {
-  const parts = text.split(',');
-
-  if (parts.length !== 2) {
-    console.error("Der Text enthält nicht genau ein Komma.");
-    return null;
-  }
-
-  const firstHalf = parseFloat(parts[0], 10);
-  const secondHalf = parseFloat(parts[1], 10);
-
-  if (isNaN(firstHalf) || isNaN(secondHalf)) {
-    console.error("Ungültige Zahlen gefunden.");
-    return null;
-  }
-
-  return {latitude: firstHalf, longitude: secondHalf};
-}
-
-
-export async function fetchKMLContent(kmlUrl) {
-  const response = await fetch(kmlUrl);
-  if (!response.ok) {
-    throw new Error('Fehler beim Laden der KML-Datei');
-  }
-
-  const kmlContent = await response.text();
-  return kmlContent;
-}
-
-export async function fetchEffiKMLContent(kmlUrl) {
-  const response = await fetch(kmlUrl);
-  if (!response.ok) {
-    throw new Error('Fehler beim Laden der KML-Datei');
-  }
-
-  const kmlContent = await response.text();
-  return kmlContent;
-}
 
 export function getRectangleData(confidenceThreshhold, coordinate, confidence, date, time, count, parsedCoordinates, bounds){
     if(confidence >= confidenceThreshhold) {
@@ -100,33 +18,6 @@ export function getRectangleData(confidenceThreshhold, coordinate, confidence, d
     return parsedCoordinates
 }
 
-export function getRectangleData2(confidenceThreshhold, confidence, parsedValues, dateAquired, time, count, parsedCoordinates){
-    if(confidence >= confidenceThreshhold) {
-        let rectangleValues = parsedValues;
-        rectangleValues["confidence"] = confidence;
-        rectangleValues["dateAquired"] = dateAquired;
-        rectangleValues["time"] = time;
-        parsedCoordinates[count] = rectangleValues;
-    }
-    return parsedCoordinates
-}
-
-
-export function parseCDATA(data){
-    const substringToRemove1 = "To subscribe to fire email alerts, visit <a href='https://earthdata.nasa.gov/data/nrt-data/firms/email-alerts'>https://earthdata.nasa.gov/data/nrt-data/firms/email-alerts/</a> <br><br>&bull; <a href='https://earthdata.nasa.gov/data/nrt-data/disclaimer'>FIRMS Disclaimer</a><br><br>";
-    const substringToRemove2 = " and <a href=\"https://earthdata.nasa.gov/faq/firms-faq\">https://earthdata.nasa.gov/faq/firms-faq </a>";
-    const replaceSubstring = "href='https://earthdata.nasa.gov/data/nrt-data/firms'";
-    if (data.includes(replaceSubstring)) {
-        data = data.replace(replaceSubstring, replaceSubstring + " target='_blank'");
-    }
-    if (data.includes(substringToRemove1)) {
-        data = data.replace(substringToRemove1, "");
-    }
-    if (data.includes(substringToRemove2)) {
-        data = data.replace(substringToRemove2, "");
-    }
-    return data;
-}
 
 export const responseDataManual = {
     "coordinates": {
@@ -342,22 +233,13 @@ export function extract24Hours(timeSeries7days){
     for (var i = 0; i < timeSeries7days.features.length; i++) {
       var feature = timeSeries7days.features[i];
 
-      if (feature.properties.date === dates[8] || feature.properties.date === dates[7]) {
+      if (feature.properties.date === dates[8] || feature.properties.date === dates[7] || feature.properties.date === dates[6]) {
         filteredFeatures.features.push(feature);
       }
     }
     return filteredFeatures;
 }
 
-export function swapCoordinates(featureCollection) {
-  featureCollection.features.forEach(function (feature) {
-    if (feature.geometry && feature.geometry.coordinates) {
-      var temp = feature.geometry.coordinates[0]; // Temporäre Variable für das Vertauschen
-      feature.geometry.coordinates[0] = feature.geometry.coordinates[1];
-      feature.geometry.coordinates[1] = temp;
-    }
-  });
-}
 
 export function convertCSVTextToGeoJSONTimeDimension(csvText){
     let geoJSON = {type: 'FeatureCollection', features: []};
@@ -372,16 +254,13 @@ export function convertCSVTextToGeoJSONTimeDimension(csvText){
 
             if (!isNaN(latitude) && !isNaN(longitude)) {
                 const properties = {
-                    // brightness: values[2],
-                    date: values[5],
-                    time: values[5] + "T" + values[6].substring(0,2) + ":" + values[6].substring(2,4) + ":00",
-                    confidence: values[8],
-                    //frp: values[10],
-                    //daynight: values[11]
+                    date: values[2],
+                    time: values[2] + "T" + values[3].substring(0,2) + ":" + values[3].substring(2,4) + ":00",
+                    confidence: values[4],
                 };
 
-                if (dates.indexOf(values[5]) === -1){
-                    dates.push(values[5]);
+                if (dates.indexOf(values[2]) === -1){
+                    dates.push(values[2]);
                 }
 
                 const geometry = {

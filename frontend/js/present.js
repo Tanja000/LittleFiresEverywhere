@@ -17,7 +17,7 @@ const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
 //const backendURL = "http://127.0.0.1:8000";
 /*For deployment set to true!*/
 const driveData = true;
-const weatherApi = true;
+const forecast = true;
 //////////////////////////////////////////////////////////////////
 
 const modis_active_World = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Global_24h.kml";
@@ -35,14 +35,15 @@ let ControlLayer;
 let firstTimeWheel = true;
 
 let timeSeries24hours = null;
-let zoomDeleted = false;
 let timeSeries7days = null;
-let timeDimensionControl;
+let timeDimensionControl = null;
 let geoJSONTimeSeries7days = null;
-let controlTimeSeriesSet = false;
 let controlMarkersSet = false;
 let controlAreasSet = false;
 let timeDimension;
+let zoomForTimeSeries = false;
+let timeSeriesInControl = false;
+let showTimeSeries = true;
 
 const popupOptions = {
             'maxWidth': '500',
@@ -79,7 +80,7 @@ async function getModis7daysDataFromDrive() {
 }
 
 
-async function getModis7daysData(){
+async function getModis7daysDataFromFile(){
     console.log("start reading 7 days data");
     const url= "/data/MODIS_C6_1_Global_7d.csv";
     return fetch(url)
@@ -92,7 +93,7 @@ async function getModis7daysData(){
     .then(async (csvData) => {
         timeSeries7days = convertCSVTextToGeoJSONTimeDimension(csvData);
         timeSeries24hours = extract24Hours(timeSeries7days);
-        console.log("7 days modis data ready!")
+        console.log("got modis data");
 
     })
     .catch((error) => {
@@ -172,11 +173,6 @@ async function getMap() {
     const maxLatLng = L.latLng(90, 180);
     const bounds = L.latLngBounds(minLatLng, maxLatLng);
     map.setMaxBounds(bounds);
-    map.on('drag', () => {
-        deleteZoomLayers();
-        deleteZoom();
-        handleZoomChange();
-    });
 
     Esri_WorldTopoMap.addTo(map);
     map.on('zoom', deletePopup);
@@ -288,7 +284,9 @@ async function getMap() {
             map.setView(center, 4);
 
             get24hoursLayer(bounds);
-            await loadForcastInBackground(bounds);
+            if(forecast) {
+                await loadForcastInBackground(bounds);
+            }
         }
         textLabel.on('click', startClick);
         rectangle.on('click', startClick);
@@ -352,12 +350,39 @@ async function getMap() {
             }
         }).addTo(map);
 
+      map.on('dragend', function (e) {
+        if(zoomForTimeSeries && showTimeSeries){
+            ControlLayer.removeLayer(geoJSONTimeSeries7days);
+            map.removeLayer(geoJSONTimeSeries7days);
+            map.removeControl(timeDimensionControl);
+            getTimeDimension(true, true);
+        }
+        });
+
       map.on('zoomend', handleZoomChange);
+
+      map.on('overlayadd', function (e) {
+          if (zoomForTimeSeries && e.layer === geoJSONTimeSeries7days) {
+               ControlLayer.removeLayer(geoJSONTimeSeries7days);
+            map.removeLayer(geoJSONTimeSeries7days);
+            map.removeControl(timeDimensionControl);
+            getTimeDimension(true, true);
+               showTimeSeries = true;
+          }
+        });
+
+     map.on('overlayremove', function (e) {
+         if (e.layer === geoJSONTimeSeries7days) {
+             map.removeControl(timeDimensionControl);
+             showTimeSeries = false;
+         }
+    });
+
       if(driveData) {
           await getModis7daysDataFromDrive();
       }
       else {
-          await getModis7daysData();
+          await getModis7daysDataFromFile();
       }
 }
 
@@ -366,13 +391,13 @@ function deleteZoom(){
     while (elements.length > 0) {
         elements[0].parentNode.removeChild(elements[0]);
     }
-    zoomDeleted = false;
 }
 function deleteZoomLayers(){
-    if (geoJSONTimeSeries7days !== null) {
+    if (zoomForTimeSeries) {
+        ControlLayer.removeLayer(geoJSONTimeSeries7days);
         map.removeLayer(geoJSONTimeSeries7days);
-        geoJSONTimeSeries7days = null;
     }
+
 }
 
 
@@ -410,6 +435,11 @@ async function handleZoomChange(){
      if(currentZoom < 7) {
          deleteZoom();
          deleteZoomLayers();
+         if(timeSeriesInControl) {
+             ControlLayer.removeLayer(geoJSONTimeSeries7days);
+             timeSeriesInControl = false;
+         }
+         zoomForTimeSeries = false;
      }
 
      if (currentZoom >= 7) {
@@ -418,66 +448,59 @@ async function handleZoomChange(){
              setTimeout(function () {
                  handleZoomChange();
              }, 3000);
+        }
+         if(!zoomForTimeSeries){
+             getTimeDimension(true, true);
          }
-
-         if(!zoomDeleted) {
-              gettimeDimension();
-         }
+         zoomForTimeSeries = true;
      }
 }
 
-function gettimeDimension(){
-    const player = new L.TimeDimension.Player({
-        transitionTime: 100,
-        loop: false,
-        startOver: true
-    }, timeDimension);
+function getTimeDimension(addToControl, getNewData){
+    if(timeDimensionControl === null) {
+        const player = new L.TimeDimension.Player({
+            transitionTime: 100,
+            loop: false,
+            startOver: true
+        }, timeDimension);
 
-    var timeDimensionControlOptions = {
-        player: player,
-        autoPlay: true,
-        minSpeed: 1,
-        speedStep: 1,
-        maxSpeed: 15,
-        timeSliderDragUpdate: true,
-    };
-
-    timeDimensionControl = new L.Control.TimeDimension(timeDimensionControlOptions);
-    map.addControl(timeDimensionControl);
-
-    let timeSeriesLayer = L.geoJSON(timeSeries7days, {
-        pointToLayer: pointToLayer,
-        filter: function (feature) {
-            return map.getBounds().contains(L.geoJSON(feature).getBounds());
-        }
-    });
-
-    geoJSONTimeSeries7days = L.timeDimension.layer.geoJson(timeSeriesLayer, {
-        updateTimeDimension: true,
-        updateTimeDimensionMode: 'replace',
-        addlastPoint: false,
-        duration: 'PT20M',
-    });
-    geoJSONTimeSeries7days.addTo(map)
-
-
-    if (!controlTimeSeriesSet) {
-        ControlLayer.addOverlay(geoJSONTimeSeries7days , 'Timeseries');
-        map.on('overlayadd', function (e) {
-            if (e.layer === geoJSONTimeSeries7days) {
-                timeDimensionControl.addTo(map);
-            }
-        });
-
-        map.on('overlayremove', function (e) {
-            if (e.layer === geoJSONTimeSeries7days) {
-                map.removeControl(timeDimensionControl);
-            }
-        });
-        controlTimeSeriesSet = true;
+        var timeDimensionControlOptions = {
+            player: player,
+            autoPlay: true,
+            minSpeed: 1,
+            speedStep: 1,
+            maxSpeed: 15,
+            timeSliderDragUpdate: true,
+        };
+        timeDimensionControl = new L.Control.TimeDimension(timeDimensionControlOptions);
     }
 
-    zoomDeleted = true;
+    map.addControl(timeDimensionControl);
+
+    if(getNewData) {
+        //Tanja ToDo:
+        //1.) Punkte in 1h Zeit einteilen und Zeit runden
+        //2.) Alle Punkte innerhalb 1h? in einem Abstand von einem 2km als Polygon und Punkt löschen. Zeitpunkt Mittelwert setzen
+        let timeSeriesLayer = L.geoJSON(timeSeries7days, {
+            pointToLayer: pointToLayer,
+            filter: function (feature) {
+                return map.getBounds().contains(L.geoJSON(feature).getBounds());
+            }
+        });
+
+        geoJSONTimeSeries7days = L.timeDimension.layer.geoJson(timeSeriesLayer, {
+            updateTimeDimension: true,
+            updateTimeDimensionMode: 'replace',
+            addlastPoint: false,
+            duration: 'PT20M',
+        });
+    }
+    geoJSONTimeSeries7days.addTo(map);
+
+    if(addToControl) {
+        ControlLayer.addOverlay(geoJSONTimeSeries7days, 'Timeseries');
+    }
+    timeSeriesInControl = true;
 }
 
 function iconsAtFireOrigin(title, coordinates, confidence, date, time){
@@ -526,78 +549,90 @@ async function loadForcastInBackground(bounds){
         firstTimeWheel = false;
     }
 
+    let postData = [];
+    let counter = 0;
     //if less or equal than 4 fires for forecast
-    if (dataLength <= 4){
-        await processAndMapData(parsedCoordinates, true);
-        return;
+    if (dataLength < 4){
+        for (const key  in parsedCoordinates) {
+            let tempDict = {};
+            tempDict[key] = parsedCoordinates[key];
+            postData.push(tempDict);
+            if(counter == dataLength - 1){
+                await processAndMapData(postData, true);
+                firstTimeWheel = true;
+                return;
+            }
+            counter++;
+        }
     }
 
-    let tempDict = {};
-    let counter = 0;
-    let entireCount = 0;
 
+    counter = 0;
+    let entireCount = 0;
+    let postData2 = [];
     // more than 4 fires for forecast
-    for (const key in parsedCoordinates) {
+    for (const key in parsedCoordinates) {;
+        let tempDict = {};
         tempDict[key] = parsedCoordinates[key];
-        counter++;
+        postData2.push(tempDict);
 
         //process 4 fires and map those
-        if (counter === 4 || dataLength === counter) {
+        if (counter === 3 || dataLength - 1 === entireCount) {
             if(entireCount === dataLength - 1){
                 lastCall = true;
+                firstTimeWheel = true;
             }
             else {lastCall = false;}
-            await processAndMapData(tempDict, lastCall);
-            tempDict = {};
-            counter = 0;
+            await processAndMapData(postData2, lastCall);
+            postData2 = [];
+            counter = -1;
         }
 
-        if (entireCount === dataLength - 1 && counter !== 0){
-            await processAndMapData(tempDict, true);
-            return;
-        }
+        counter++;
         entireCount++;
     }
 
 }
 
-async function processAndMapData(parsedCoordinates, lastCall) {
-    let responseDataAll = {};
-    let responseData = {};
-    let coordinatesData = {};
-    let meteoData = {};
-    if(weatherApi) {
-        try {
-            console.log(backendURL + "/process_data");
-            const response = await fetch(backendURL + "/process_data", {
-                method: "POST",
-                mode: 'cors',
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(parsedCoordinates)
-            });
-            responseData = await response.json();
-            if (Object.keys(responseData).length === 0) {
-                console.log("error. no data")
-            }
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                return 'Request was aborted';
-            } else {
-                return 'An error occurred: ' + error.message;
-            }
-        }
-    }
-     else{
-        responseData = responseDataManual;
-    }
-    coordinatesData = responseData['coordinates'];
-    meteoData = responseData['meteo_data'];
-    responseDataAll[dataCounter] = coordinatesData;
-    meteoDataAll[dataCounter] = meteoData;
-    await getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer, lastCall);
-    dataCounter++;
+function fetchWeatherData(url, parsedCoordinates){
+    console.log(url);
+    return fetch(url, {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(parsedCoordinates)
+    }).then(response => response.json());
+}
+
+async function processAndMapData(postData, lastCall) {
+
+    const urls = [
+       backendURL + "/process_data1",
+       backendURL + "/process_data2",
+       backendURL + "/process_data3",
+       backendURL + "/process_data4",
+    ];
+
+    const fetchPromises = await urls.map((url, index) => fetchWeatherData(url, postData[index]));
+    Promise.all(fetchPromises)
+      .then(responses => {
+          for (const key in responses) {
+              let responseDataAll = {};
+              let coordinatesData = {};
+              let meteoData = {};
+              coordinatesData = responses[key]['coordinates'];
+              meteoData = responses[key]['meteo_data'];
+              responseDataAll[dataCounter] = coordinatesData;
+              meteoDataAll[dataCounter] = meteoData;
+              getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer, lastCall);
+              dataCounter++;
+          }
+      })
+      .catch(error => {
+        console.error('Ein Fehler ist aufgetreten:', error);
+      });
     return;
 }
 

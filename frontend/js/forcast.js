@@ -144,7 +144,7 @@ export function deleteWheelWaiting(){
   return data;
 }*/
 
-async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData, key, ControlLayer, lastCall){
+function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData, key, ControlLayer, lastCall){
     const distance = 0.001; // 100 Meter in Grad (angenommen)
     const points = calculatePerpendicularCoordinates(pathCoordinates, distance);
     const stepIncrement = 2;
@@ -161,7 +161,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
     let times = [];
     let polygonsList = [];
 
-    async function animateConvexHull() {
+    function animateConvexHull() {
         if (step < points.length) {
             const hullCoordinates = turf.featureCollection([]);
             let textLabel;
@@ -364,7 +364,7 @@ async function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, me
 
 
 
-async function getLayers(responseData, map, meteoData, ControlLayer, lastCall) {
+function getLayers(responseData, map, meteoData, ControlLayer, lastCall) {
     for (const key in responseData) {
         let coordinatesArray = [];
         let dictCoordinates = responseData[key];
@@ -378,12 +378,12 @@ async function getLayers(responseData, map, meteoData, ControlLayer, lastCall) {
         if(Object.values(dictCoordinates).length > 0) {
             let startTime = Object.values(dictCoordinates)[0].startTime;
             let date = Object.values(dictCoordinates)[0].dateAquired;
-            await pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key, ControlLayer, lastCall);
+            pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key, ControlLayer, lastCall);
         }
     }
 }
 
-export async function getForcastLayer(responseData, map, meteoData, ControlLayer, lastCall) {
+export function getForcastLayer(responseData, map, meteoData, ControlLayer, lastCall) {
     console.log("new forcast for rectangle selected");
     for (const key in responseData) {
         const response = responseData[key];
@@ -396,7 +396,7 @@ export async function getForcastLayer(responseData, map, meteoData, ControlLayer
             }
 
         }
-        await getLayers(response, map, meteo, ControlLayer, lastCall);
+        getLayers(response, map, meteo, ControlLayer, lastCall);
     }
 
     return;

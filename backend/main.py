@@ -256,7 +256,55 @@ def get_new_coordinate(lat, lng, date, time_str):
     return day, meteo_data_hour
 
 
-@app.post("/process_data")
+@app.post("/process_data1")
+async def receive_data(coordinates: dict):
+    print("starting processing data")
+    response_dict = {}
+    meteo_dict = {}
+    for key, value in coordinates.items():
+        latitude = value["latitude"]
+        longitude = value["longitude"]
+        date = value["dateAquired"]
+        time = value["time"]
+        # confidence = value["confidence"]
+        response_coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
+        meteo_dict[key] = meteo
+        response_dict[key] = response_coordinates
+    return {"coordinates": response_dict, "meteo_data": meteo_dict}
+
+@app.post("/process_data2")
+async def receive_data(coordinates: dict):
+    print("starting processing data")
+    response_dict = {}
+    meteo_dict = {}
+    for key, value in coordinates.items():
+        latitude = value["latitude"]
+        longitude = value["longitude"]
+        date = value["dateAquired"]
+        time = value["time"]
+        # confidence = value["confidence"]
+        response_coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
+        meteo_dict[key] = meteo
+        response_dict[key] = response_coordinates
+    return {"coordinates": response_dict, "meteo_data": meteo_dict}
+
+@app.post("/process_data3")
+async def receive_data(coordinates: dict):
+    print("starting processing data")
+    response_dict = {}
+    meteo_dict = {}
+    for key, value in coordinates.items():
+        latitude = value["latitude"]
+        longitude = value["longitude"]
+        date = value["dateAquired"]
+        time = value["time"]
+        # confidence = value["confidence"]
+        response_coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
+        meteo_dict[key] = meteo
+        response_dict[key] = response_coordinates
+    return {"coordinates": response_dict, "meteo_data": meteo_dict}
+
+@app.post("/process_data4")
 async def receive_data(coordinates: dict):
     print("starting processing data")
     response_dict = {}

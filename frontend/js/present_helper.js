@@ -282,8 +282,8 @@ export function convertCSVTextToGeoJSONTimeDimension(csvText){
 export function pointToLayer(feature, latlng) {
   return L.circleMarker(latlng, {
     radius: 5,
-    color: 'red',
-    fillColor: 'red',
+    color: '#cc1414',
+    fillColor: '#cc1414',
     fillOpacity: 0.5,
     opacity: 1,
   });

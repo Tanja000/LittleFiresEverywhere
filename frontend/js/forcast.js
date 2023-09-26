@@ -262,7 +262,7 @@ function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoDat
                 for (const poly of allPolygons[key]) {
                     poly.setStyle({
                         fillColor: 'darkred',
-                        fillOpacity: 0.5,
+                        fillOpacity: 0.1,
                         weight: 1,
                         color: 'darkred'
                     });
@@ -301,7 +301,7 @@ function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoDat
                 for (const poly of allPolygons[key]) {
                     poly.setStyle({
                         fillColor: 'darkred',
-                        fillOpacity: 0.5,
+                        fillOpacity: 0.1,
                         weight: 1,
                         color: 'darkred'
                     });
@@ -384,7 +384,6 @@ function getLayers(responseData, map, meteoData, ControlLayer, lastCall) {
 }
 
 export function getForcastLayer(responseData, map, meteoData, ControlLayer, lastCall) {
-    console.log("new forcast for rectangle selected");
     for (const key in responseData) {
         const response = responseData[key];
         const meteo = meteoData[key];

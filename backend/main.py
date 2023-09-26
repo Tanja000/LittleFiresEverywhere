@@ -37,6 +37,12 @@ deta_drive = Deta(drive_key)
 deta_file = deta_drive.Drive("modis_fire")
 filename = 'MODIS_C6_1_Global_7d.csv'
 
+db_key = "a0ztxrhcebt_SXs1sEfGTSosQzSyLLQdF9D6EZra8EUi"
+deta = Deta(db_key)
+modis_table_7d = deta.Base("ModisData")
+
+drive = False
+
 class ActionPayload(BaseModel):
     action: str
     value: int
@@ -60,8 +66,17 @@ def getModisCSV7days():
         np.savetxt(csv_text, numpy_array, delimiter=',', fmt='%s')
         csv_string = csv_text.getvalue()
 
-        deta_file.put(filename, csv_string)
-        print(f'Die HTML-Seite wurde erfolgreich im deta drive gespeichert.')
+        if drive:
+            deta_file.put(filename, csv_string)
+            print(f'Die Datei wurde erfolgreich im deta drive gespeichert.')
+
+        else:
+            dict_send = df.to_dict('records')
+            #takes to long and removing all items befor new data is not possible/impractical!
+           # for item in dict_send:
+           #     print(item)
+           #     modis_table_7d.put(item)
+
     except Exception as e:
         print(f'Fehler beim Speichern der HTML-Seite: {e}')
 
@@ -258,6 +273,8 @@ def get_new_coordinate(lat, lng, date, time_str):
 
 @app.post("/process_data1")
 async def receive_data(coordinates: dict):
+    if not coordinates:
+        return {}
     print("starting processing data")
     response_dict = {}
     meteo_dict = {}
@@ -274,6 +291,8 @@ async def receive_data(coordinates: dict):
 
 @app.post("/process_data2")
 async def receive_data(coordinates: dict):
+    if not coordinates:
+        return {}
     print("starting processing data")
     response_dict = {}
     meteo_dict = {}
@@ -290,6 +309,8 @@ async def receive_data(coordinates: dict):
 
 @app.post("/process_data3")
 async def receive_data(coordinates: dict):
+    if not coordinates:
+        return {}
     print("starting processing data")
     response_dict = {}
     meteo_dict = {}
@@ -306,6 +327,8 @@ async def receive_data(coordinates: dict):
 
 @app.post("/process_data4")
 async def receive_data(coordinates: dict):
+    if not coordinates:
+        return {}
     print("starting processing data")
     response_dict = {}
     meteo_dict = {}

@@ -21,7 +21,10 @@ const forecast = true;
 //////////////////////////////////////////////////////////////////
 
 const modis_active_World = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Global_24h.kml";
-
+const drive_key = "a0g5kqh4m4i_VHKDKLqgj7m4Kpep1VTPer3Z3BpGtBwd";
+const deta = Deta(drive_key);
+const drive = deta.Drive('modis_fire');
+const filename = 'MODIS_C6_1_Global_7d.csv'
 
 let map;
 let confidenceThreshhold = 90;
@@ -67,13 +70,15 @@ const markersCluster = L.markerClusterGroup({
 
 async function getModis7daysDataFromDrive() {
     console.log("starting with modis data");
-    const drive_key = "a0g5kqh4m4i_VHKDKLqgj7m4Kpep1VTPer3Z3BpGtBwd";
-    const deta = Deta(drive_key);
-    const drive = deta.Drive('modis_fire');
-    const filename = 'MODIS_C6_1_Global_7d.csv'
+    const start = Date.now();
 
     const response = await drive.get(filename);
     const csvData = await response.text();
+
+    const end = Date.now();
+    const executionTime = end - start;
+    console.log('file download from drive: ' + executionTime + ' ms');
+
     timeSeries7days = convertCSVTextToGeoJSONTimeDimension(csvData);
     timeSeries24hours = extract24Hours(timeSeries7days);
     console.log("got modis data");
@@ -158,7 +163,7 @@ async function getMap() {
     map = L.map('map', {
         center: originalCenter,
         zoom: originalZoom,
-        layers: [Esri_WorldTopoMap],
+        layers: [Esri_WorldImagery],
     });
     map.timeDimension = timeDimension;
 
@@ -459,7 +464,7 @@ async function handleZoomChange(){
 function getTimeDimension(addToControl, getNewData){
     if(timeDimensionControl === null) {
         const player = new L.TimeDimension.Player({
-            transitionTime: 100,
+            transitionTime: 1000,
             loop: false,
             startOver: true
         }, timeDimension);
@@ -575,27 +580,47 @@ async function loadForcastInBackground(bounds){
         let tempDict = {};
         tempDict[key] = parsedCoordinates[key];
         postData2.push(tempDict);
+        counter++;
+        entireCount++;
 
         //process 4 fires and map those
-        if (counter === 3 || dataLength - 1 === entireCount) {
-            if(entireCount === dataLength - 1){
+        if (counter === 4 || dataLength === entireCount) {
+            if(entireCount === dataLength){
                 lastCall = true;
                 firstTimeWheel = true;
             }
             else {lastCall = false;}
             await processAndMapData(postData2, lastCall);
+            if(entireCount === dataLength){
+                return;
+            }
             postData2 = [];
-            counter = -1;
+            counter = 0;
         }
-
-        counter++;
-        entireCount++;
     }
+}
 
+function isNullOrEmptyObject(obj) {
+  if (obj === null || obj === undefined) {
+    return true;
+  }
+
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function fetchWeatherData(url, parsedCoordinates){
     console.log(url);
+    if(isNullOrEmptyObject(parsedCoordinates)){
+        console.log("object is empty")
+        return {};
+    }
+
     return fetch(url, {
         method: "POST",
         mode: 'cors',
@@ -622,12 +647,15 @@ async function processAndMapData(postData, lastCall) {
               let responseDataAll = {};
               let coordinatesData = {};
               let meteoData = {};
-              coordinatesData = responses[key]['coordinates'];
-              meteoData = responses[key]['meteo_data'];
-              responseDataAll[dataCounter] = coordinatesData;
-              meteoDataAll[dataCounter] = meteoData;
-              getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer, lastCall);
-              dataCounter++;
+              if(!isNullOrEmptyObject(responses)) {
+                  coordinatesData = responses[key]['coordinates'];
+                  meteoData = responses[key]['meteo_data'];
+                  responseDataAll[dataCounter] = coordinatesData;
+                  meteoDataAll[dataCounter] = meteoData;
+                  console.log("starting forecast item")
+                  getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer, lastCall);
+                  dataCounter++;
+              }
           }
       })
       .catch(error => {
@@ -702,5 +730,5 @@ function calculateBurningAreas(bounds){
     }
 }
 
-console.log("starting map...")
+console.log("starting app...")
 getMap();

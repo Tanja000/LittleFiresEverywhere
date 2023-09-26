@@ -6,10 +6,10 @@ https://github.com/Tanja000/LittleFiresEverywhere
 !!In das Verzeichnis "webapp" gehen!! </br></br>
 
 space login
-TOKEN: WDSHzpER_niqLFGCWtbA35wFQXtPGoZH3uj2BGVEL
+TOKEN: <my token>
 
 Lokal ausführen: </br>
-    space link (Projekt ID: "a0euC4WYJu49" für" Projekt "Wildfires"</br>
+    space link <project ID>
     space open (Öffnet Details zum Projekt)</br>
     npm run install:all </br>
     space dev </br>

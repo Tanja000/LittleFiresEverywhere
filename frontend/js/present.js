@@ -5,19 +5,19 @@ import {
     deleteWheelWaiting,
 } from "./forcast.js";
 import {
-    getRectangleData,
-    pointToLayer, convertCSVTextToGeoJSONTimeDimension, extract24Hours, responseDataManual
+    getRectangleData, pointToLayer, convertCSVTextToGeoJSONTimeDimension, extract24Hours
 } from "./present_helper.js";
+import {responseDataManual} from "./weatherResponse.js";
 
 import { Deta} from 'https://cdn.deta.space/js/deta@latest/deta.mjs';
 
 //////////////////////////////////////////////////////////////////
 /*change here for local application or deployment*/
-const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
-//const backendURL = "http://127.0.0.1:8000";
+//const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
+const backendURL = "http://127.0.0.1:8000";
 /*For deployment set to true!*/
-const driveData = true;
-const forecast = true;
+const driveData = false;
+const forecast = false;
 //////////////////////////////////////////////////////////////////
 
 const modis_active_World = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Global_24h.kml";
@@ -289,9 +289,7 @@ async function getMap() {
             map.setView(center, 4);
 
             get24hoursLayer(bounds);
-            if(forecast) {
-                await loadForcastInBackground(bounds);
-            }
+            await loadForcastInBackground(bounds);
         }
         textLabel.on('click', startClick);
         rectangle.on('click', startClick);
@@ -640,6 +638,26 @@ async function processAndMapData(postData, lastCall) {
        backendURL + "/process_data4",
     ];
 
+    if(!forecast){
+       const responses = responseDataManual;
+       for (const key in responses) {
+           let responseDataAll = {};
+           let coordinatesData = {};
+           let meteoData = {};
+           if (!isNullOrEmptyObject(responses)) {
+               coordinatesData = responses[key]['coordinates'];
+               meteoData = responses[key]['meteo_data'];
+               responseDataAll[dataCounter] = coordinatesData;
+               meteoDataAll[dataCounter] = meteoData;
+               console.log("starting forecast item")
+               getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer, lastCall);
+               dataCounter++;
+           }
+       }
+
+       return;
+    }
+
     const fetchPromises = await urls.map((url, index) => fetchWeatherData(url, postData[index]));
     Promise.all(fetchPromises)
       .then(responses => {
@@ -653,6 +671,7 @@ async function processAndMapData(postData, lastCall) {
                   responseDataAll[dataCounter] = coordinatesData;
                   meteoDataAll[dataCounter] = meteoData;
                   console.log("starting forecast item")
+                  console.log(responseDataAll);
                   getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer, lastCall);
                   dataCounter++;
               }
@@ -712,10 +731,11 @@ function calculateBurningAreas(bounds){
 
             const leafletPolygon = L.geoJSON(bufferedPolygon, {
                 style: {
-                    "color": "#a049e3",
-                    "weight": 3,
+                    "color": "#deb6de",
+                    "weight": 5,
                     "opacity": 0.65,
                     "smoothFactor": 0.5,
+                    "fillColor": "#5c3369",
                 }
             });
 

@@ -2,23 +2,16 @@ import {
     getForcastLayer,
     createWheelWaiting,
     handIcon,
-    deleteWheelWaiting,
+    deleteWheelWaiting
 } from "./forcast.js";
 import {
     getRectangleData, pointToLayer, convertCSVTextToGeoJSONTimeDimension, extract24Hours
 } from "./present_helper.js";
-import {responseDataManual} from "./weatherResponse.js";
+import {
+    backendURL, driveData, forecast, ndviIncluded, timeSeries
+} from "./config.js";
 
 import { Deta} from 'https://cdn.deta.space/js/deta@latest/deta.mjs';
-
-//////////////////////////////////////////////////////////////////
-/*change here for local application or deployment*/
-//const backendURL = "https://wildfirebackend-1-q4366666.deta.app";
-const backendURL = "http://127.0.0.1:8000";
-/*For deployment set to true!*/
-const driveData = false;
-const forecast = false;
-//////////////////////////////////////////////////////////////////
 
 const modis_active_World = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/kml/MODIS_C6_1_Global_24h.kml";
 const drive_key = "a0g5kqh4m4i_VHKDKLqgj7m4Kpep1VTPer3Z3BpGtBwd";
@@ -29,7 +22,6 @@ const filename = 'MODIS_C6_1_Global_7d.csv'
 let map;
 let confidenceThreshhold = 90;
 let markers = [];
-let meteoDataAll = {};
 let dataCounter = 0;
 const originalZoom = 3;
 const originalCenter = [23, 8];
@@ -84,6 +76,15 @@ async function getModis7daysDataFromDrive() {
     console.log("got modis data");
 }
 
+async function getBackendDataFromFile(url){
+    return fetch(url)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Network response was not ok (${response.status})`);
+      }
+      return response.json();
+    })
+}
 
 async function getModis7daysDataFromFile(){
     console.log("start reading 7 days data");
@@ -354,7 +355,7 @@ async function getMap() {
         }).addTo(map);
 
       map.on('dragend', function (e) {
-        if(zoomForTimeSeries && showTimeSeries){
+        if(timeSeries && zoomForTimeSeries && showTimeSeries){
             ControlLayer.removeLayer(geoJSONTimeSeries7days);
             map.removeLayer(geoJSONTimeSeries7days);
             map.removeControl(timeDimensionControl);
@@ -365,7 +366,7 @@ async function getMap() {
       map.on('zoomend', handleZoomChange);
 
       map.on('overlayadd', function (e) {
-          if (zoomForTimeSeries && e.layer === geoJSONTimeSeries7days) {
+          if (timeSeries && zoomForTimeSeries && e.layer === geoJSONTimeSeries7days) {
                ControlLayer.removeLayer(geoJSONTimeSeries7days);
             map.removeLayer(geoJSONTimeSeries7days);
             map.removeControl(timeDimensionControl);
@@ -435,7 +436,7 @@ function get24hoursLayer(bounds){
 async function handleZoomChange(){
     const currentZoom = map.getZoom();
 
-     if(currentZoom < 7) {
+     if(currentZoom < 7 && timeSeries) {
          deleteZoom();
          deleteZoomLayers();
          if(timeSeriesInControl) {
@@ -445,7 +446,7 @@ async function handleZoomChange(){
          zoomForTimeSeries = false;
      }
 
-     if (currentZoom >= 7) {
+     if (currentZoom >= 7 && timeSeries) {
          if (timeSeries7days === null) {
              console.log("wait for 3 seconds");
              setTimeout(function () {
@@ -541,6 +542,8 @@ async function loadForcastInBackground(bounds){
     });
 
     let dataLength = Object.keys(parsedCoordinates).length;
+    console.log("Data length:")
+    console.log(dataLength);
     if (dataLength == 0){
         deleteWheelWaiting();
         return;
@@ -612,12 +615,16 @@ function isNullOrEmptyObject(obj) {
   return true;
 }
 
-function fetchWeatherData(url, parsedCoordinates){
+
+function fetchData(url, parsedCoordinates){
     console.log(url);
     if(isNullOrEmptyObject(parsedCoordinates)){
         console.log("object is empty")
         return {};
     }
+    let dataSend = {};
+    dataSend['coordinates'] = parsedCoordinates;
+    dataSend['ndvi'] = ndviIncluded;
 
     return fetch(url, {
         method: "POST",
@@ -625,57 +632,56 @@ function fetchWeatherData(url, parsedCoordinates){
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify(parsedCoordinates)
+        body: JSON.stringify(dataSend)
     }).then(response => response.json());
 }
 
 async function processAndMapData(postData, lastCall) {
 
-    const urls = [
+    let originLatLng = null;
+    dataCounter = 0;
+    const urlsWeather = [
        backendURL + "/process_data1",
        backendURL + "/process_data2",
        backendURL + "/process_data3",
        backendURL + "/process_data4",
     ];
 
-    if(!forecast){
-       const responses = responseDataManual;
-       for (const key in responses) {
-           let responseDataAll = {};
-           let coordinatesData = {};
-           let meteoData = {};
-           if (!isNullOrEmptyObject(responses)) {
-               coordinatesData = responses[key]['coordinates'];
-               meteoData = responses[key]['meteo_data'];
-               responseDataAll[dataCounter] = coordinatesData;
-               meteoDataAll[dataCounter] = meteoData;
-               console.log("starting forecast item")
-               getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer, lastCall);
-               dataCounter++;
-           }
-       }
 
+    if(!forecast) {
+        const url_ndvi = "/data/result_backend_NDVI.geojson";
+        const url_meteo = "/data/result_backend_meteo.geojson";
+        const responses_ndvi = await getBackendDataFromFile(url_ndvi);
+        console.log("starting forecast item")
+        const ndviData_obj = Object.entries(responses_ndvi);
+        const responses_meteo = await getBackendDataFromFile(url_meteo);
+        for (const [key, value] of Object.entries(responses_meteo)) {
+            const ndviData = ndviData_obj[dataCounter][1];
+            if(Object.keys(value).length !== 0) {
+                const coordData = Object.values(Object.values(value['coordinates'])[0]);
+                const meteoData = Object.values(Object.values(value['meteo_data'])[0]);
+                const key = Object.keys(value['coordinates'])[0];
+                getForcastLayer(map, ndviData, coordData, meteoData, key, ControlLayer, false, true, false, ndviIncluded);
+                dataCounter++;
+            }
+        }
        return;
     }
 
-    const fetchPromises = await urls.map((url, index) => fetchWeatherData(url, postData[index]));
-    Promise.all(fetchPromises)
+    const fetchPromisesWeather = await urlsWeather.map((url, index) => fetchData(url, postData[index]));
+    Promise.all(fetchPromisesWeather)
       .then(responses => {
-          for (const key in responses) {
-              let responseDataAll = {};
-              let coordinatesData = {};
-              let meteoData = {};
-              if(!isNullOrEmptyObject(responses)) {
-                  coordinatesData = responses[key]['coordinates'];
-                  meteoData = responses[key]['meteo_data'];
-                  responseDataAll[dataCounter] = coordinatesData;
-                  meteoDataAll[dataCounter] = meteoData;
-                  console.log("starting forecast item")
-                  console.log(responseDataAll);
-                  getForcastLayer(responseDataAll, map, meteoDataAll, ControlLayer, lastCall);
-                  dataCounter++;
-              }
-          }
+           for (const [key, value] of Object.entries(responses)) {
+            if(Object.keys(value).length !== 0) {
+                const coordData = Object.values(Object.values(value['coordinates'])[0]);
+                const meteoData = Object.values(Object.values(value['meteo_data'])[0]);
+                const ndviData = Object.values(value['ndvi_data'])[0];
+                const minus90 = Object.values(value['minus90'])[0];
+                const key = Object.keys(value['coordinates'])[0];
+                getForcastLayer(map, ndviData, coordData, meteoData, key, ControlLayer, value['minus90'], lastCall, true, ndviIncluded);
+                dataCounter++;
+            }
+        }
       })
       .catch(error => {
         console.error('Ein Fehler ist aufgetreten:', error);

@@ -1,3 +1,4 @@
+import {ndviIncluded} from "./config";
 
 let allPolygons = {};
 export let forcastPolygons = L.markerClusterGroup();
@@ -11,7 +12,7 @@ export const handIcon = L.icon({
 let forecastControl = false;
 
 const pointerIcon = L.icon({
-            iconUrl: './icons/click_finger.png',
+            iconUrl: './icons/click_finger_black.png',
             iconSize: [20, 20],
             iconAnchor: [0, 0]
 });
@@ -55,6 +56,7 @@ export function utcTimeToDate(date, time){
           time = time.toString() + ":00";
         }
     }
+
     if (time.includes("UTC")){
         time = time.slice(0, -4)
     }
@@ -65,44 +67,6 @@ export function utcTimeToDate(date, time){
 
 function buttonClick(){
     console.log("button clicked");
-}
-
-
-function calculatePerpendicularCoordinates(pathCoordinates, distance) {
-    const perpendicularCoordinates = [];
-
-    for (let i = 0; i < pathCoordinates.length; i++) {
-        var currentCoord = pathCoordinates[i];
-        const nextCoord = pathCoordinates[i + 1] || pathCoordinates[i - 1];
-
-        const dx = nextCoord[0] - currentCoord[0];
-        const dy = nextCoord[1] - currentCoord[1];
-
-        const length = Math.sqrt(dx * dx + dy * dy);
-
-        const perpendicularVector = [-dy, dx];
-
-        const normalizedPerpendicularVector = [
-            perpendicularVector[0] / length,
-            perpendicularVector[1] / length
-        ];
-
-        const offsetX = normalizedPerpendicularVector[0] * distance;
-        const offsetY = normalizedPerpendicularVector[1] * distance;
-        const newCoord1 = [
-            currentCoord[0] + offsetX,
-            currentCoord[1] + offsetY
-        ];
-        const newCoord2 = [
-            currentCoord[0] - offsetX,
-            currentCoord[1] - offsetY
-        ];
-
-        perpendicularCoordinates.push(newCoord1, newCoord2);
-
-    }
-
-    return perpendicularCoordinates;
 }
 
 
@@ -138,15 +102,180 @@ export function deleteWheelWaiting(){
     }
 }
 
-/*async function fetchMapAsync() {
-  const response = await fetch('https://unpkg.com/@geo-maps/earth-seas-10m/map.geo.json');
-  const data = await response.json();
-  return data;
-}*/
 
-function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoData, key, ControlLayer, lastCall){
-    const distance = 0.001; // 100 Meter in Grad (angenommen)
-    const points = calculatePerpendicularCoordinates(pathCoordinates, distance);
+function getSmoothedPolygon(convexHull, color){
+    const smoothed = turf.polygonSmooth(convexHull, {iterations: 5});
+    const hullLayer = L.geoJSON(smoothed, {
+                style: {
+                    color: "black",
+                    fillColor: color,
+                    fillOpacity: 0.2,
+                    weight: 0.5,
+                }
+            })
+    return hullLayer;
+}
+
+function trajectoryToMap(map, meteoData){
+    meteoData.forEach(coord => {
+    L.circle([coord.latitude, coord.longitude], {
+        color: 'green',
+        fillColor: 'green',
+        fillOpacity: 0.5,
+        radius: 50,
+      }).addTo(map);
+    });
+    const trajectory = L.polyline(meteoData.map(coord => [coord.latitude, coord.longitude]), { color: 'blue' }).addTo(map);
+}
+
+function isCoordinateInRectangle(coord, rectangle) {
+  return rectangle.getBounds().contains(coord);
+}
+
+function getCone(map, meteoData, squareList){
+    const distanceMeters = 30;
+    let coneTipLatLngPrevious = L.latLng();
+    let radiusMeters = 0.0005;
+    const numPoints = 40;
+    let count = 0;
+    let semiSpherePrevious = [];
+    let semiSphereCoordinates = [];
+    let hullLayers = [];
+    let radiusAdd = 0;
+
+    for (const [key, value] of Object.entries(meteoData)) {
+
+        const coneBaseCenterLatLng = L.latLng(value.latitude, value.longitude);
+
+        let hullCoordinates = turf.featureCollection([]);
+        semiSphereCoordinates = [];
+
+        for (let i = 0; i < numPoints; i++) {
+            hullCoordinates.features.push(semiSpherePrevious[i]);
+        }
+
+        if(Object.entries(squareList).length > 0) {
+            for (const square of Object.entries(squareList)) {
+                if (isCoordinateInRectangle(coneBaseCenterLatLng, square[1])) {
+                    const rectangleColor = square[1].options.fillColor;
+                    console.log(rectangleColor);
+
+                    if (rectangleColor === 'yellow') {
+                        radiusAdd = 0.00005;
+                    } else if (rectangleColor === 'orange') {
+                        radiusAdd = 0.0001;
+                    } else if (rectangleColor === 'red') {
+                        radiusAdd = 0.0005;
+                    } else if (rectangleColor === 'blue') {
+                        return hullLayers;
+                    } else {
+                        //Tanja TODO: hier neue ndvi Daten holen!
+                        radiusAdd = 0.00005;
+                    }
+                }
+            }
+        }
+        else{
+            radiusAdd += 0.00005;
+        }
+        radiusMeters += radiusAdd
+
+        for (let i = 0; i < numPoints; i++)
+        {
+            const angle = (i / numPoints) * 2 * Math.PI;
+            const x = radiusMeters * Math.cos(angle) + coneBaseCenterLatLng.lng;
+            const y = radiusMeters * Math.sin(angle) + coneBaseCenterLatLng.lat;
+
+            const newPoint = turf.point([x, y]);
+            semiSphereCoordinates.push(newPoint);
+            hullCoordinates.features.push(newPoint);
+        }
+
+        if(count === 0){
+            coneTipLatLngPrevious = coneBaseCenterLatLng;
+            semiSpherePrevious = semiSphereCoordinates;
+            count += 1;
+            continue;
+         }
+
+        const latDiff = coneBaseCenterLatLng.lat - coneTipLatLngPrevious.lat;
+        const lngDiff = coneBaseCenterLatLng.lng - coneTipLatLngPrevious.lng;
+        const length = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+        const unitLat = latDiff / length;
+        const unitLng = lngDiff / length;
+        let y1 = coneBaseCenterLatLng.lat + (unitLng * (distanceMeters / 111319));
+        let x1 = coneBaseCenterLatLng.lng - (unitLat * (distanceMeters / 111319));
+        let y2 = coneBaseCenterLatLng.lat - (unitLng * (distanceMeters / 111319));
+        let x2 = coneBaseCenterLatLng.lng + (unitLat * (distanceMeters / 111319));;
+        let newPoint = turf.point([x1, y1]);
+        hullCoordinates.features.push(newPoint);
+        newPoint = turf.point([x2, y2]);
+        hullCoordinates.features.push(newPoint);
+
+        const convexHull = turf.convex(hullCoordinates);
+        const hullLayer = getSmoothedPolygon(convexHull, 'darkred').addTo(map);
+        hullLayers.push(hullLayer);
+
+        coneTipLatLngPrevious = coneBaseCenterLatLng;
+        semiSpherePrevious = semiSphereCoordinates;
+        count ++;
+       // if(count == 4){ return hullLayers;}
+    }
+    return hullLayers;
+}
+
+
+function getNDVIMatrixLayer(ndviData, map, minus90, realForcast) {
+
+    const squareSize = 0.0028;
+    const colorRanges = [
+        {color: 'blue', min: -1, max: 0.05},
+        {color: 'yellow', min: 0.05, max: 0.3},
+        {color: 'red', min: 0.3, max: 0.7},
+        {color: 'orange', min: 0.7, max: 1},
+    ];
+    let count = 0;
+    let squareList = [];
+    if (!realForcast) {
+        ndviData = Object.values(ndviData)[0];
+    }
+
+    ndviData.forEach(data => {
+            if (data) {
+                const value = data.ndvi;
+                let lng = data.coordinates[0][0];
+                if (minus90) {
+                    lng -= 90;
+                }
+                let lat = data.coordinates[0][1];
+
+                let color = 'gray'; // Standardfarbe
+                for (const range of colorRanges) {
+                    if (value >= range.min && value < range.max) {
+                        color = range.color;
+                        break;
+                    }
+                }
+
+                const square = L.rectangle([
+                    [lat - squareSize / 2, lng - squareSize / 2],
+                    [lat + squareSize / 2, lng + squareSize / 2],
+                ], {
+                    fillColor: color,
+                    color: 'black',
+                    weight: 1,
+                    fillOpacity: 0.5,
+                });
+                squareList.push(square);
+              //  square.addTo(map);
+            }
+            count += 1;
+        });
+        return squareList;
+}
+
+function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, controlLayer, lastCall){
+    const dataLength = polyLayers.length - 1;
     const stepIncrement = 2;
     const hours = Object.keys(meteoData);
     let step = 2;
@@ -155,137 +284,90 @@ function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoDat
     let startTime = startTime_;
     let date = date_;
     let newStartTime = startTime;
-    const numPoints = 45;
-    let initialCircleRadius = 0.005;
     let dates = [];
     let times = [];
     let polygonsList = [];
+    let slider;
 
-    function animateConvexHull() {
-        if (step < points.length) {
-            const hullCoordinates = turf.featureCollection([]);
-            let textLabel;
-            newStartTime = startTime + timeStep;
-            if (newStartTime >= 24) {
-                newStartTime -= 24;
-                startTime = 0;
-                timeStep = stepIncrement;
-                date = addOneDay(date);
-            }
+    for (const poly of polyLayers) {
+        let textLabel;
+        newStartTime = startTime + timeStep;
+        if (newStartTime >= 24) {
+            newStartTime -= 24;
+            startTime = 0;
+            timeStep = stepIncrement;
+            date = addOneDay(date);
+        }
+        const hour = hours[currentIndex]
+        dates.push(date);
+        times.push(newStartTime);
 
-            let rectanglePoints = [];
-            for (let i = step - stepIncrement ; i < step + stepIncrement; i++) {
-                const newPoint = turf.point(points[i]);
-                hullCoordinates.features.push(newPoint);
-                rectanglePoints.push(points[i]);
-            }
+        polygonsList.push(poly);
+        allPolygons[key] = polygonsList;
+        forcastPolygons.addLayer(poly);
+
+        let dateAndTime = utcTimeToDate(date, newStartTime);
+        const gmtIndex = dateAndTime.indexOf("GMT");
+        dateAndTime = dateAndTime.substring(0, gmtIndex);
+
+        let popupContent = "<div id='popup-content'>" +
+            "<b>FIRE SPREAD FORECAST: </b><br><br>" + dateAndTime +
+            "<br>Windspeed: " + meteoData[hour]['windspeed'] + "km/h" +
+            "<br>Humidity: " + meteoData[hour]['relativehumidity'] + "%" +
+            "<br>Evapotranspiration: " + meteoData[hour]['evapotranspiration'] + "mm" +
+            "<br>Rain: " + meteoData[hour]['rain'] + "mm" +
+            "<br>Soil Temperature: " + meteoData[hour]['soil_temperature_0cm'] + "°C" +
+            "<br>Soil Moisture: " + meteoData[hour]['soil_moisture_0_1cm'] + "m³/m³" +
+            "<br>Temperature: " + meteoData[hour]['temperature_2m'] + "°C </div>" ;
 
 
-            const hour = hours[currentIndex]
-            let slowDownFactor = meteoData[hour]['soil_temperature_0cm'] + meteoData[hour]['relativehumidity'];
-            let speedFactor = meteoData[hour]['evapotranspiration'];
-            let rain = meteoData[hour]['rain'];
-            let temp_factor = meteoData[hour]['soil_temperature_0cm'] / 40 + meteoData[hour]['temperature_2m'] / 40;
-            let factor = (1 + speedFactor) / slowDownFactor;
+        let idSlider = "time-slider" + key;
+        let sliderValue = dataLength - currentIndex;
+        let sliderContent = popupContent + '<br><div id="slider-container">' +
+            '<input id=' + idSlider + ' type="range" min="0" max="10" step="1" value=' + sliderValue + '></div>';
+
+        let popupHull = L.popup({
+            offset: [75, -75],
+            autoPan: true,
+        }).setContent(sliderContent);
 
 
-            let radius = factor * temp_factor * initialCircleRadius + initialCircleRadius;
-            if (rain > 0) {
-                radius = radius / (1 + rain);
-            }
-            initialCircleRadius += 0.002;
+        poly.bindPopup(popupHull, popupOptions);
 
-            const center = pathCoordinates[currentIndex];
-            const circleCoordinates = calculateCircleCoordinates(center, radius, numPoints);
-            for (const circleCoord of circleCoordinates) {
-                const newPoint = turf.point(circleCoord);
-                hullCoordinates.features.push(newPoint);
-            }
-
-            const convexHull = turf.convex(hullCoordinates);
-            const hullPolygon = new L.polygon(convexHull.geometry.coordinates, {
-                color: 'orange',//'#8b0000',
+        poly.on('popupopen', function () {
+            poly.setStyle({
+                fillColor: 'orange',
                 fillOpacity: 0.5,
-                name: 'forcast-polygon'
+                weight: 2,
+                color: 'orange'
             });
+            slider = document.getElementById(idSlider);
+            slider.addEventListener('input', sliderChanged);
 
-            dates.push(date);
-            times.push(newStartTime);
-
-            polygonsList.push(hullPolygon);
-            forcastPolygons.addLayer(hullPolygon);
-
-            //wegen Koordinaten rectangle Berechnung - ersten meteo Wert geglassen
-            allPolygons[key] = polygonsList;
-
-            let dateAndTime = utcTimeToDate(date, newStartTime);
-            const gmtIndex = dateAndTime.indexOf("GMT");
-            dateAndTime = dateAndTime.substring(0, gmtIndex);
-
-            let idContent = "popupContent" + key;
-            let popupContent = "<div id=" + idContent + ">" +
-                "<b>FIRE SPREAD FORECAST: </b><br><br>" + dateAndTime +
-                "<br>Windspeed: " + meteoData[hour]['windspeed'] + "km/h" +
-                "<br>Humidity: " + meteoData[hour]['relativehumidity'] + "%" +
-                "<br>Evapotranspiration: " + meteoData[hour]['evapotranspiration'] + "mm" +
-                "<br>Rain: " + meteoData[hour]['rain'] + "mm" +
-                "<br>Soil Temperature: " + meteoData[hour]['soil_temperature_0cm'] + "°C" +
-                "<br>Soil Moisture: " + meteoData[hour]['soil_moisture_0_1cm'] + "m³/m³" +
-                "<br>Temperature: " + meteoData[hour]['temperature_2m'] + "°C" + "</div>";
-
-            let idSlider = "time-slider" + key;
-         //   let idSliderText = "slider-value" + key;
-            let sliderValue = 10 - currentIndex;
-            let sliderContent = popupContent + '<br><div id="slider-container">' +
-                '<input id=' + idSlider + ' type="range" min="0" max="10" step="1" value=' + sliderValue + '></div>';
-
-            let popupHull = L.popup({
-                offset: [75, -75],
-                autoPan: true,
-            }).setContent(sliderContent);
-
-            hullPolygon.bindPopup(popupHull, popupOptions);
-            hullPolygon.on('popupopen', function () {
-                hullPolygon.setStyle({
-                    fillColor: 'orange',
-                    fillOpacity: 0.5,
-                    weight: 2,
-                    color: 'orange'
-                });
-                const slider = document.getElementById(idSlider);
-                slider.addEventListener('input', sliderChanged);
-                if(!textLabel){
-                    hullPolygon.closePopup();
-                }
-            });
-            hullPolygon.on('popupclose', function () {
-                for (const poly of allPolygons[key]) {
-                    poly.setStyle({
-                        fillColor: 'darkred',
-                        fillOpacity: 0.1,
-                        weight: 1,
-                        color: 'darkred'
-                    });
-                }
-            });
-
-            const slider = document.getElementById(idSlider);
-            if (slider) {
-                slider.addEventListener('input', sliderChanged);
+            if (!textLabel) {
+                poly.closePopup();
             }
+        });
+
+        poly.on('popupclose', function () {
+            for (const poly2 of allPolygons[key]) {
+                poly2.setStyle({
+                    fillColor: 'darkred',
+                    fillOpacity: 0.1,
+                    weight: 1,
+                    color: 'darkred'
+                });
+            }
+        });
 
 
-            function sliderChanged() {
-                const idSlider = "time-slider" + key;
-                const slider = document.getElementById(idSlider);
-                const sliderValue = slider.value;
-                const indexMeteo = hours[10 - sliderValue];
-             //   const idSliderText = "slider-value" + key;
-               // const sliderText = document.getElementById(idSliderText);
-               // sliderText.innerHTML = "Date: " + dates[10 - sliderValue] + " Time: " + times[10 - sliderValue] + " UTC";
-                dateAndTime = utcTimeToDate(dates[10 - sliderValue], times[10 - sliderValue]);
-                dateAndTime = dateAndTime.substring(0, gmtIndex);
-                const popupContent =
+    function sliderChanged() {
+        sliderValue = slider.value;
+        const indexMeteo = hours[dataLength - sliderValue];
+
+        dateAndTime = utcTimeToDate(dates[dataLength - sliderValue], times[dataLength - sliderValue]);
+        dateAndTime = dateAndTime.substring(0, gmtIndex);
+        const popupContent = "<div id='popup-content'>" +
                     "<b>FIRE SPREAD FORECAST: </b><br><br>" + dateAndTime +
                     "<br>Windspeed: " + meteoData[indexMeteo]['windspeed'] + "km/h" +
                     "<br>Humidity: " + meteoData[indexMeteo]['relativehumidity'] + "%" +
@@ -293,111 +375,77 @@ function pathToPolygonAnimated(pathCoordinates, date_, startTime_, map, meteoDat
                     "<br>Rain: " + meteoData[indexMeteo]['rain'] + "mm" +
                     "<br>Soil Temperature: " + meteoData[indexMeteo]['soil_temperature_0cm'] + "°C" +
                     "<br>Soil Moisture: " + meteoData[indexMeteo]['soil_moisture_0_1cm'] + "m³/m³" +
-                    "<br>Temperature: " + meteoData[indexMeteo]['temperature_2m'] + "°C";
+                    "<br>Temperature: " + meteoData[indexMeteo]['temperature_2m'] + "°C </div>";
 
-                idContent = "popupContent" + key;
-                document.getElementById(idContent).innerHTML = popupContent;
-                const sliderPolygon = allPolygons[key][10 - sliderValue];
-                for (const poly of allPolygons[key]) {
-                    poly.setStyle({
-                        fillColor: 'darkred',
-                        fillOpacity: 0.1,
-                        weight: 1,
-                        color: 'darkred'
-                    });
-                }
-                sliderPolygon.setStyle({
-                    fillColor: 'orange',
-                    fillOpacity: 0.5,
-                    weight: 2,
-                    color: 'orange'
-                });
-                sliderPolygon.bringToFront();
+        document.getElementById("popup-content").innerHTML = popupContent;
+        const sliderPolygon = allPolygons[key][dataLength - sliderValue];
+        for (const poly2 of allPolygons[key]) {
+            poly2.setStyle({
+                fillColor: 'darkred',
+                fillOpacity: 0.1,
+                weight: 1,
+                color: 'darkred'
+            });
+        }
+        sliderPolygon.setStyle({
+            fillColor: 'orange',
+            fillOpacity: 0.5,
+            weight: 2,
+            color: 'orange'
+        });
+        sliderPolygon.bringToFront();
+    }
 
-            }
+    if (currentIndex == dataLength) {
+        const polygonCenter = poly.getBounds().getCenter();
+        const textCenter =  L.latLng(polygonCenter.lat, polygonCenter.lng);
+        textLabel = L.marker(textCenter, {
+            icon: pointerIcon,
+            zIndexOffset: 1000
+        });
+        textLabel.bindTooltip('Click me!', {
+            permanent: false,
+            direction: 'top',
+            className: 'text-labels'
+        });
 
-            if (currentIndex == 10) {
-                const textCenter =  L.latLng(center[0], center[1]);
-                textLabel = L.marker(textCenter, {
-                    icon: pointerIcon,
-                    zIndexOffset: 1000
-                });
-                textLabel.bindTooltip('Click me!', {
-                    permanent: false,
-                    direction: 'top',
-                    className: 'text-labels'
-                });
+        textLabel.on('click', clickTextLabel);
+        arrowSymbolForcast.addLayer(textLabel);
+        forcastPolygons.addLayer(textLabel);
+        forcastPolygons.addTo(map);
 
-                textLabel.on('click', clickTextLabel);
-                arrowSymbolForcast.addLayer(textLabel);
-                forcastPolygons.addLayer(textLabel);
-                forcastPolygons.addTo(map);
+        if (!forecastControl) {
+            controlLayer.addOverlay(forcastPolygons, "Forecast");
+            forecastControl = true;
+        }
 
-                if (!forecastControl) {
-                    ControlLayer.addOverlay(forcastPolygons, "Forecast");
-                    forecastControl = true;
-                }
-
-                function clickTextLabel() {
-                    hullPolygon.bindPopup(popupHull).openPopup();
-                    map.setView(textCenter, 13);
-                }
-                if(lastCall){
-                    console.log("FINISHED");
-                    deleteWheelWaiting();
-                }
-            }
-
-            currentIndex++;
-            step += stepIncrement;
-            timeStep += stepIncrement;
-            const animation = setTimeout(function () {
-                hullPolygon.setStyle({
-                    color: 'darkred',//'#eb8334'
-                });
-                animateConvexHull(hullPolygon);
-            }, 1000); // 1 Sekunde Verzögerung zwischen den Schritten
+        function clickTextLabel() {
+            poly.bindPopup(popupHull).openPopup();
+            map.setView(textCenter, 13);
+        }
+        if(lastCall){
+            console.log("FINISHED");
+            deleteWheelWaiting();
         }
     }
-    animateConvexHull();
-}
 
-
-
-function getLayers(responseData, map, meteoData, ControlLayer, lastCall) {
-    for (const key in responseData) {
-        let coordinatesArray = [];
-        let dictCoordinates = responseData[key];
-        for (const key in dictCoordinates) {
-            if (dictCoordinates.hasOwnProperty(key)) {
-                const coordinate = dictCoordinates[key];
-                coordinatesArray.push([coordinate.latitude, coordinate.longitude, coordinate.dateAquired, coordinate.startTime]);
-            }
-        }
-
-        if(Object.values(dictCoordinates).length > 0) {
-            let startTime = Object.values(dictCoordinates)[0].startTime;
-            let date = Object.values(dictCoordinates)[0].dateAquired;
-            pathToPolygonAnimated(coordinatesArray, date, startTime, map, meteoData[key], key, ControlLayer, lastCall);
-        }
+    currentIndex++;
+    step += stepIncrement;
+    timeStep += stepIncrement;
     }
 }
 
-export function getForcastLayer(responseData, map, meteoData, ControlLayer, lastCall) {
-    for (const key in responseData) {
-        const response = responseData[key];
-        const meteo = meteoData[key];
-        let firstCoordinate;
-        for (const key in response) {
-            const first = Object.values(response[key]);
-            if(first.length > 0) {
-                firstCoordinate = Object.values(first['0']);
-            }
+export function getForcastLayer(map, ndviData, coordData, meteoData, key, ControlLayer, minus90, lastCall, realForecast, ndviIncluded) {
 
-        }
-        getLayers(response, map, meteo, ControlLayer, lastCall);
+    let startTime = coordData[0]['startTime'];
+    let date = coordData[0]['dateAquired'];
+    let squareList = {};
+    if(ndviIncluded) {
+        squareList = getNDVIMatrixLayer(ndviData, map, minus90, realForecast);
     }
-
+   // trajectoryToMap(map, coordData);
+    const polyLayers = getCone(map, coordData, squareList);
+    getPopupForCones(polyLayers, meteoData, key, startTime, date, map, ControlLayer, lastCall)
     return;
 }
 

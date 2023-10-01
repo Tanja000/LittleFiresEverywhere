@@ -11,15 +11,19 @@ from deta import Deta
 import pandas as pd
 from io import StringIO
 import numpy as np
-
+import requests
 
 ####################
-#chane for deployment
+# chane for deployment
 origins = [
     # Tanja TODO: local host später löschen!!!
     "http://127.0.0.1:4201",
     "https://wildfires-1-f7510945.deta.app"
 ]
+
+ndvi_from_API = True
+drive = True
+
 ###############################
 api_url = "https://api.open-meteo.com/v1/forecast"
 
@@ -41,7 +45,6 @@ db_key = "a0ztxrhcebt_SXs1sEfGTSosQzSyLLQdF9D6EZra8EUi"
 deta = Deta(db_key)
 modis_table_7d = deta.Base("ModisData")
 
-drive = False
 
 class ActionPayload(BaseModel):
     action: str
@@ -49,16 +52,194 @@ class ActionPayload(BaseModel):
     url: str
 
 
+# je näher der index bei 1 umso gesunder und dichter ist die vegetation
+# ein index < 0 ist wasser
+# ein index um 0 herum -> keine vegetation
+# Achtung Unterscheidung Grasland und Wald! Wald dürfte höheren Index haben aber Feuer breitet sich am besten in Graslandschaft aus
+# evtl. 0.3 - 0.7 gras
+# 0.7 - 1 wald
+def calculate_ndvi(nir_band, red_band):
+    # Berechnung des NDVI
+    ndvi = (nir_band - red_band) / (nir_band + red_band)
+    return round(ndvi, 4)
+
+
+# Offset any lat long by x, y meters
+def lat_long_offset(lat, lon, x, y):
+    '''
+    lat, lon : Provide lat lon coordinates
+    x, y : Provide offset of x and y on lat and long respectively
+           This needs to be in meters!
+
+    The approximation is taken from an aviation formula from this stack exchange
+    https://gis.stackexchange.com/questions/2951/algorithm-for-offsetting-a-latitude-longitude-by-some-amount-of-meters
+    '''
+
+    # Earth’s radius, sphere
+    R = 6378137
+
+    # Coordinate offsets in radians
+    dLat = x / R
+    dLon = y / (R * np.cos(np.pi * lat / 180))
+
+    # OffsetPosition, decimal degrees
+    latO = lat + dLat * 180 / np.pi
+    lonO = lon + dLon * 180 / np.pi
+
+    return latO, lonO
+
+
+# Create offset_grid and return coordinates
+def get_mesh(lat, lon, dist, coors, value_list):
+    minus90 = False
+    if lat < 0:
+        lat += 90
+        minus90 = True
+    # calculate min and max range for coordinates over an axis
+    mini, maxi = -dist * coors, dist * coors
+
+    # calculate number of points over an axis
+    n_coord = coors * 2 + 1
+
+    # create an axis from min to max value with required number of coordinates
+    axis = np.linspace(mini, maxi, n_coord)
+
+    # create an "offset_grid" for X and Y values for both axis.
+    X, Y = np.meshgrid(axis, axis)
+
+    # calcualte offset coordinates for "offset_grid" in meters
+    lat_long_offset_vec = np.vectorize(lat_long_offset)
+
+    mesh = lat_long_offset_vec(lat, lon, X, Y)
+
+    # Transpose to get the (x,y) values for the offset_grid's shape
+    poly_list = []
+    mesh_x_y_format = np.stack(mesh).transpose(1, 2, 0)
+
+    count = 0
+    for item in mesh_x_y_format:
+        for it in item:
+            poly_dict = {}
+            poly_dict['ndvi'] = value_list[count]
+            poly_dict['coordinates'] = [it.tolist()]
+            poly_list.append(poly_dict)
+            count += 1
+
+    return [poly_list, minus90]
+
+
+def ndviDataToDCoordinatesDict(ndvi_list, lat_center, lng_center):
+    # Tanja TODO: ab und zu checken ob schon neueres Datum!
+    # Aktuell:2023-08-29
+    # cellsize": 231.656358264 -> cellsize/9 = 25.73959
+    # 9x9 - 81
+    # var middleCell = data[4][4] => value for latitude, longitude
+    # polygon 1 = point
+
+    print("calculate new edge coordinates")
+    cell_size = 231.656358264
+
+    [output, minus90] = get_mesh(lat_center, lng_center, cell_size, 4, ndvi_list)
+
+    return [output, minus90]
+
+
+# werte mit faktoren aus wetterdaten neu berechnen und in 5 farben einteilen
+# dictionary für leaflte
+# neues gewichtetes zentrum für neue wetterkoordinate berechnen
+
+
+def getNVIDataModis():
+    dateiname = "../frontend/public/data/Modis_VGI_data.geojson"
+    df = pd.read_json(dateiname)
+    nir_data = df['subset'][2]['data']
+    red_data = df['subset'][4]['data']
+
+    print("ndvi for testing")
+
+    ndvi_data = []
+    for nir_band, red_band in zip(nir_data, red_data):
+        ndvi_band = calculate_ndvi(nir_band, red_band)
+        ndvi_data.append(ndvi_band)
+
+    lat_center = 35.958767
+    lng_center = -84.287433
+
+    [ndvi_list, minus90] = ndviDataToDCoordinatesDict(ndvi_data, lat_center, lng_center)
+    return [ndvi_list, minus90]
+
+def transform_coordinates(latitude, longitude):
+    # Begrenze die Breitengradwerte auf den Bereich von -90 bis 90
+    latitude = max(min(latitude, 90.0), -90.0)
+
+    # Begrenze die Längengradwerte auf den Bereich von -180 bis 180
+    longitude = max(min(longitude, 180.0), -180.0)
+
+    return [latitude, longitude]
+
+
+def getNewNDVIDateAPI(latitude, longitude):
+    print("start new date")
+    header = {'Accept': 'application/json'}
+    url_date = "https://modis.ornl.gov/rst/api/v1/MOD13Q1/dates?latitude=" + str(latitude) + "&longitude=" + str(longitude)
+    try:
+        response = requests.get(url_date, header)
+        if response.status_code == 200:
+            data = response.json()
+            newest_date = data['dates'].pop()['modis_date']
+            calendar_date = data['dates'].pop()['calendar_date']
+            d = {'date_string': [newest_date], 'date': [calendar_date]}
+            df = pd.DataFrame.from_dict(d)
+            file_date = "../frontend/public/data/modis_ndvi_data.csv"
+            df.to_csv(file_date, index=False)
+    except Exception as ex:
+        print("Ein unerwarteter Fehler ist aufgetreten:", ex)
+
+def getNDVIDataModisAPI(latitude, longitude):
+    # cellsize": 231.656358264 meters
+    header = {'Accept': 'application/json'}
+
+    file_date = "../frontend/public/data/modis_ndvi_data.csv"
+    df_date = pd.read_csv(file_date)
+    newest_date = df_date.iloc[0].tolist()[0]
+    ndvi_date = df_date.iloc[0].tolist()[1]
+
+    url = "https://modis.ornl.gov/rst/api/v1/MOD13Q1/subset?latitude=" + str(longitude) + "&longitude=" + str(latitude) + "&startDate=" + newest_date + "&endDate=" + newest_date + "&kmAboveBelow=1&kmLeftRight=1"
+
+    try:
+        response = requests.get(url, header)
+        # response = urllib.request.urlopen(url).read()
+        if response.status_code == 200:
+            data = response.json()
+            nir_data = data['subset'][2]['data']
+            red_data = data['subset'][4]['data']
+
+            ndvi_data = []
+            for nir_band, red_band in zip(nir_data, red_data):
+                ndvi_band = calculate_ndvi(nir_band, red_band)
+                ndvi_data.append(ndvi_band)
+
+            [ndvi_list, minus90] = ndviDataToDCoordinatesDict(ndvi_data, latitude, longitude)
+            return [ndvi_list, minus90]
+
+        else:
+            print("Fehler beim Abrufen der Daten. Statuscode:", response.status_code)
+
+
+    except Exception as ex:
+        print("Ein unerwarteter Fehler ist aufgetreten:", ex)
+
+
 def getModisCSV7days():
     # latitude, longitude, brightness, scan, track, acq_date, acq_time, satellite, confidence, version, bright_t31, frp, daynight
     url = 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_7d.csv'
     spalten_zu_behalten = ['latitude', 'longitude', 'acq_date', 'acq_time', 'confidence']
-    #local_file = 'data/MODIS_C6_1_Global_7d.csv'
+    # local_file = 'data/MODIS_C6_1_Global_7d.csv'
 
     try:
         df = pd.read_csv(url, usecols=spalten_zu_behalten, encoding='utf-8')
-        #df_csv = df.to_csv(local_file, index=False, encoding="utf-8")
-        #df = pd.read_csv(local_file)
+        # df_csv = df.to_csv(local_file, index=False, encoding="utf-8")
+        # df = pd.read_csv(local_file)
         df['acq_time'] = df['acq_time'].astype(str).str.rjust(4, '0')
         numpy_array = df.to_numpy()
         numpy_array = np.vstack([spalten_zu_behalten, numpy_array])
@@ -72,10 +253,10 @@ def getModisCSV7days():
 
         else:
             dict_send = df.to_dict('records')
-            #takes to long and removing all items befor new data is not possible/impractical!
-           # for item in dict_send:
-           #     print(item)
-           #     modis_table_7d.put(item)
+            # takes to long and removing all items befor new data is not possible/impractical!
+        # for item in dict_send:
+        #     print(item)
+        #     modis_table_7d.put(item)
 
     except Exception as e:
         print(f'Fehler beim Speichern der HTML-Seite: {e}')
@@ -83,13 +264,13 @@ def getModisCSV7days():
 
 def getModisCSV24h():
     url = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_24h.csv"
-    #dateiname = "../frontend/public/data/MODIS_C6_1_Global_24h.csv";
+    # dateiname = "../frontend/public/data/MODIS_C6_1_Global_24h.csv";
     try:
         response = urllib.request.urlopen(url)
         html = response.read().decode('utf-8')
         deta_file.put(filename, html)
-       # with open(dateiname, 'w', encoding='utf-8') as datei:
-       #     datei.write(html)
+        # with open(dateiname, 'w', encoding='utf-8') as datei:
+        #     datei.write(html)
         print(f'Die HTML-Seite wurde erfolgreich im deta drive gespeichert.')
     except Exception as e:
         print(f'Fehler beim Speichern der HTML-Seite: {e}')
@@ -135,8 +316,8 @@ def calculate_new_coordinates(lat, lon, meteo_data):
     R = 6371000  # Durchschnittlicher Erdradius in Metern
     direction_rad = math.radians(direction_degrees - 180)
     # pro 2 Stunden berechnet km/h -> km/2h
-    distance_m = speed_kmh * 2 * 1000  # Distanz = Geschwindigkeit * Zeit / in Meter umgerechenet
-    distance_m = distance_m * 0.5 #Annahme: Feuer breitet sich nicht mit Windgeschwindigkeit aus
+    distance_m = speed_kmh / 2 * 1000  # Distanz = Geschwindigkeit * Zeit / in Meter umgerechenet
+    distance_m = distance_m * 0.5  # Annahme: Feuer breitet sich nicht mit Windgeschwindigkeit aus
     if rain > 2:
         distance_m = 0
 
@@ -178,7 +359,6 @@ def get_meteo_data(lat, lng, date, hour_no):
     # rain mm
     # hourly=temperature_2m °C
 
-
     date_start = date
     date_end = add_days(date, 2)
     url_windspeed = "https://api.open-meteo.com/v1/forecast?latitude=" + str(lat) + "&longitude=" + str(
@@ -186,9 +366,9 @@ def get_meteo_data(lat, lng, date, hour_no):
                     "&end_date=" + date_end + "&hourly=windspeed_10m&hourly=winddirection_10m&hourly=relativehumidity_2m&hourly=temperature_2m" \
                                               "&hourly=evapotranspiration&hourly=rain&hourly=soil_temperature_0cm&hourly=soil_moisture_0_1cm"
 
-    #print(url_windspeed)
-    #print(str(lat))
-    #print(str(lng))
+    # print(url_windspeed)
+    # print(str(lat))
+    # print(str(lng))
 
     try:
         response = urllib.request.urlopen(url_windspeed).read()
@@ -212,11 +392,10 @@ def get_meteo_data(lat, lng, date, hour_no):
         return {}
 
 
-
 def round_to_next_hour(time_str):
     from datetime import datetime, timedelta
     time_str = time_str.replace(" UTC", "")
-    time_str = time_str[time_str.index("T")+1:len(time_str)-3]
+    time_str = time_str[time_str.index("T") + 1:len(time_str) - 3]
 
     time_obj = datetime.strptime(time_str, '%H:%M')
 
@@ -228,23 +407,23 @@ def round_to_next_hour(time_str):
     rounded_hour = rounded_time_obj.hour
     return rounded_hour
 
+def get_new_ndvi(lat, lng):
+    if ndvi_from_API:
+        [ndvi, minus90] = getNDVIDataModisAPI(lat, lng)
+    else:
+        [ndvi, minus90] = getNVIDataModis()
+    return [ndvi, minus90]
+
 
 def get_new_coordinate(lat, lng, date, time_str):
     day = {}
-    meteo = {}
-    wind_speed_max = 0
-    relativehumidity_max = 0
-    evapotranspiration_max = 0
-    soil_temperature_max = 0
-    soil_moisture_max = 0
-    temperature_max = 0
-    rain_max = 0
 
     time = round_to_next_hour(time_str)
     noNewValues = False
     meteo_data_hour = {}
     meteo_data = {}
     hour_counter = 0
+
     for hour_no in range(time, time + 23, 2):
         if not noNewValues:
             meteo_data_hour[hour_no] = get_meteo_data(lat, lng, date, hour_no)
@@ -255,12 +434,15 @@ def get_new_coordinate(lat, lng, date, time_str):
             meteo_data_hour[hour_no] = meteo_data_hour[hour_no - 2]
             if not meteo_data_hour[hour_no]:
                 return day, meteo_data_hour
+
+        new_coord = {"latitude": lat, "longitude": lng, "dateAquired": date, "startTime": time}
+        day[hour_no] = new_coord
+
         new_lat, new_lng = calculate_new_coordinates(lat, lng, meteo_data)
         distance = haversine_distance(lat, lng, new_lat, new_lng)
         lat = new_lat
         lng = new_lng
-        new_coord = {"latitude": new_lat, "longitude": new_lng, "dateAquired": date, "startTime": time}
-        day[hour_no] = new_coord
+
         if distance <= 500 and hour_counter == 0:
             noNewValues = True
             hour_counter += 1
@@ -270,85 +452,133 @@ def get_new_coordinate(lat, lng, date, time_str):
 
     return day, meteo_data_hour
 
-
 @app.post("/process_data1")
-async def receive_data(coordinates: dict):
+async def receive_data(data: dict):
+    coordinates = data['coordinates']
+    ndvi_included = data['ndvi']
     if not coordinates:
         return {}
     print("starting processing data")
-    response_dict = {}
+    coordinates_dict = {}
     meteo_dict = {}
+    ndvi_dict = {}
     for key, value in coordinates.items():
         latitude = value["latitude"]
         longitude = value["longitude"]
         date = value["dateAquired"]
         time = value["time"]
         # confidence = value["confidence"]
-        response_coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
+        coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
         meteo_dict[key] = meteo
-        response_dict[key] = response_coordinates
-    return {"coordinates": response_dict, "meteo_data": meteo_dict}
+        coordinates_dict[key] = coordinates
+        if ndvi_included:
+            lng2 = list(coordinates.values())[1]['latitude']
+            lat2 = list(coordinates.values())[1]['longitude']
+            [ndvi, minus90] = get_new_ndvi(lat2, lng2)
+            ndvi_dict[key] = ndvi
+        else:
+            ndvi_dict = {}
+            minus90 = False
+    return {"coordinates": coordinates_dict, "meteo_data": meteo_dict, 'ndvi_data': ndvi_dict, 'minus90': minus90}
+
 
 @app.post("/process_data2")
-async def receive_data(coordinates: dict):
+async def receive_data(data: dict):
+    coordinates = data['coordinates']
+    ndvi_included = data['ndvi']
     if not coordinates:
         return {}
     print("starting processing data")
-    response_dict = {}
+    coordinates_dict = {}
     meteo_dict = {}
+    ndvi_dict = {}
     for key, value in coordinates.items():
         latitude = value["latitude"]
         longitude = value["longitude"]
         date = value["dateAquired"]
         time = value["time"]
         # confidence = value["confidence"]
-        response_coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
+        coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
         meteo_dict[key] = meteo
-        response_dict[key] = response_coordinates
-    return {"coordinates": response_dict, "meteo_data": meteo_dict}
+        coordinates_dict[key] = coordinates
+        if ndvi_included:
+            lng2 = list(coordinates.values())[1]['latitude']
+            lat2 = list(coordinates.values())[1]['longitude']
+            [ndvi, minus90] = get_new_ndvi(lat2, lng2)
+            ndvi_dict[key] = ndvi
+        else:
+            ndvi_dict = {}
+            minus90 = False
+    return {"coordinates": coordinates_dict, "meteo_data": meteo_dict, 'ndvi_data': ndvi_dict, 'minus90': minus90}
+
 
 @app.post("/process_data3")
-async def receive_data(coordinates: dict):
+async def receive_data(data: dict):
+    coordinates = data['coordinates']
+    ndvi_included = data['ndvi']
     if not coordinates:
         return {}
     print("starting processing data")
-    response_dict = {}
+    coordinates_dict = {}
     meteo_dict = {}
+    ndvi_dict = {}
     for key, value in coordinates.items():
         latitude = value["latitude"]
         longitude = value["longitude"]
         date = value["dateAquired"]
         time = value["time"]
         # confidence = value["confidence"]
-        response_coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
+        coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
         meteo_dict[key] = meteo
-        response_dict[key] = response_coordinates
-    return {"coordinates": response_dict, "meteo_data": meteo_dict}
+        coordinates_dict[key] = coordinates
+        if ndvi_included:
+            lng2 = list(coordinates.values())[1]['latitude']
+            lat2 = list(coordinates.values())[1]['longitude']
+            [ndvi, minus90] = get_new_ndvi(lat2, lng2)
+            ndvi_dict[key] = ndvi
+        else:
+            ndvi_dict = {}
+            minus90 = False
+    return {"coordinates": coordinates_dict, "meteo_data": meteo_dict, 'ndvi_data': ndvi_dict, 'minus90': minus90}
+
 
 @app.post("/process_data4")
-async def receive_data(coordinates: dict):
+async def receive_data(data: dict):
+    coordinates = data['coordinates']
+    ndvi_included = data['ndvi']
     if not coordinates:
         return {}
     print("starting processing data")
-    response_dict = {}
+    coordinates_dict = {}
     meteo_dict = {}
+    ndvi_dict = {}
     for key, value in coordinates.items():
         latitude = value["latitude"]
         longitude = value["longitude"]
         date = value["dateAquired"]
         time = value["time"]
         # confidence = value["confidence"]
-        response_coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
+        coordinates, meteo = get_new_coordinate(longitude, latitude, date, time)
         meteo_dict[key] = meteo
-        response_dict[key] = response_coordinates
-    return {"coordinates": response_dict, "meteo_data": meteo_dict}
+        coordinates_dict[key] = coordinates
+        if ndvi_included:
+            lng2 = list(coordinates.values())[1]['latitude']
+            lat2 = list(coordinates.values())[1]['longitude']
+            [ndvi, minus90] = get_new_ndvi(lat2, lng2)
+            ndvi_dict[key] = ndvi
+        else:
+            ndvi_dict = {}
+            minus90 = False
+    return {"coordinates": coordinates_dict, "meteo_data": meteo_dict, 'ndvi_data': ndvi_dict, 'minus90': minus90}
 
 
 # Download alle 3 Stunden planen
-#getModisCSV24h()
-#getModisCSV7days()
-#schedule.every(3).hours.do(getModisCSV24h)
-#schedule.every(3).hours.do(getModisCSV7days)
+# getModisCSV24h()
+# getModisCSV7days()
+# schedule.every(3).hours.do(getModisCSV24h)
+# schedule.every(3).hours.do(getModisCSV7days)
+# getNewNDVIDateAPI(10.23, 3.002)
+
 
 if __name__ == '__main__':
     app.run(debug=True)

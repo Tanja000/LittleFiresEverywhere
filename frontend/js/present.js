@@ -107,6 +107,70 @@ async function getModis7daysDataFromFile(){
     });
 }
 
+function getTopListBurningAreas(){
+    console.log("start reading top list burning areas");
+    const url= "/data/greatestBurningAreas.csv";
+    return fetch(url)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Network response was not ok (${response.status})`);
+      }
+      return response.text();
+    })
+    .then(async (csvData) => {
+        let j;
+        let tr;
+        const lines = csvData.split('\n');
+        const table = document.getElementById('csvTable');
+        let firstRow = true;
+
+        for (let i = 0; i < lines.length; i++) {
+            const row = lines[i].split(',');
+
+            if (firstRow) {
+                const headers = ['Aquisition Time', 'State', 'Country'];
+
+                const thead = document.createElement('thead');
+                tr = document.createElement('tr');
+
+                for (j = 0; j < headers.length; j++) {
+                    const th = document.createElement('th');
+                    th.textContent = headers[j];
+                    tr.appendChild(th);
+                }
+
+                thead.appendChild(tr);
+                table.appendChild(thead);
+                firstRow = false;
+            } else {
+                let tbody = table.getElementsByTagName('tbody')[0];
+                if (!tbody) {
+                    tbody = document.createElement('tbody');
+                    table.appendChild(tbody);
+                }
+                tr = document.createElement('tr');
+                if (row.length >= 4) {
+                    tr = document.createElement('tr');
+
+                    for (let j = 4; j < row.length; j++) {
+                        const td = document.createElement('td');
+                        if(j==4){
+                            row[j] = row[j].slice(12, 22);
+                        }
+                        td.textContent = row[j];
+                        tr.appendChild(td);
+                    }
+                }
+
+                tbody.appendChild(tr);
+            }
+        }
+
+    })
+    .catch((error) => {
+      console.error('Fehler beim Laden der CSV-Datei:', error);
+    });
+}
 
 
 function deletePopup(){
@@ -704,13 +768,14 @@ function calculateBurningAreas(bounds){
     let coordinatesAll = [];
     timeSeries24hours.features.forEach(function(feature) {
         const coordinate = feature.geometry.coordinates;
-        const point = L.latLng(coordinate[1], coordinate[0]);
+        const point = L.latLng(coordinate);
         if (bounds.contains(point)) {
             coordinatesAll.push(coordinate);
         }
     });
-     var turfPoints = coordinatesAll.map(function(coordinate) {
-      return turf.point(coordinate);
+    const turfPoints = coordinatesAll.map(function (coordinate) {
+        const turfP = turf.point(coordinate);
+        return turfP;
     });
 
     const options = {units: 'kilometers', cluster: true};
@@ -738,7 +803,8 @@ function calculateBurningAreas(bounds){
 
             let turfPoints = [];
             for (const coord of polyCoordinates){
-                turfPoints.push(turf.point(coord))
+                const newTurfPoint = turf.point(coord);
+                turfPoints.push(newTurfPoint);
             }
             const points = turf.featureCollection(turfPoints);
             const boundingPolygon = turf.convex(points);
@@ -766,4 +832,6 @@ function calculateBurningAreas(bounds){
 }
 
 console.log("starting app...")
+
 getMap();
+getTopListBurningAreas();

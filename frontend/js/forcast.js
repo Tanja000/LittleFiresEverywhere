@@ -1,8 +1,8 @@
 import {ndviIncluded} from "./config";
 
+const fillOpacity = 0.25;
 let allPolygons = {};
 export let forcastPolygons = L.markerClusterGroup();
-
 export const handIcon = L.icon({
             iconUrl: './icons/click_finger.png',
             iconSize: [24, 24],
@@ -10,7 +10,7 @@ export const handIcon = L.icon({
 });
 
 let forecastControl = false;
-
+let WheelWaitingActiv = false;
 const pointerIcon = L.icon({
             iconUrl: './icons/click_finger_black.png',
             iconSize: [20, 20],
@@ -42,8 +42,9 @@ export function createWheelWaiting(map){
         'doToggle': false,
         'toggleStatus': false,
     };
-    if (!document.getElementById("leaflet-bottom")) {
+    if(!WheelWaitingActiv) {
         const wheelButton = new L.Control.Button(wheelButtonOptions).addTo(map);
+        WheelWaitingActiv = true;
     }
 }
 
@@ -100,6 +101,7 @@ export function deleteWheelWaiting(){
             elements[0].parentNode.removeChild(elements[0]);
         }
     }
+    WheelWaitingActiv = false;
 }
 
 
@@ -109,8 +111,8 @@ function getSmoothedPolygon(convexHull, color){
                 style: {
                     color: "black",
                     fillColor: color,
-                    fillOpacity: 0.2,
-                    weight: 0.5,
+                    fillOpacity: fillOpacity,
+                    weight: 1,
                 }
             })
     return hullLayer;
@@ -119,9 +121,9 @@ function getSmoothedPolygon(convexHull, color){
 function trajectoryToMap(map, meteoData){
     meteoData.forEach(coord => {
     L.circle([coord.latitude, coord.longitude], {
-        color: 'green',
+        color: 'black',
         fillColor: 'green',
-        fillOpacity: 0.5,
+        fillOpacity: fillOpacity,
         radius: 50,
       }).addTo(map);
     });
@@ -264,7 +266,7 @@ function getNDVIMatrixLayer(ndviData, map, minus90, realForcast) {
                     fillColor: color,
                     color: 'black',
                     weight: 1,
-                    fillOpacity: 0.5,
+                    fillOpacity: fillOpacity,
                 });
                 squareList.push(square);
               //  square.addTo(map);
@@ -337,9 +339,9 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
         poly.on('popupopen', function () {
             poly.setStyle({
                 fillColor: 'orange',
-                fillOpacity: 0.5,
-                weight: 2,
-                color: 'orange'
+                fillOpacity: fillOpacity,
+                weight: 1,
+                color: 'black'
             });
             slider = document.getElementById(idSlider);
             slider.addEventListener('input', sliderChanged);
@@ -349,16 +351,11 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
             }
         });
 
-        poly.on('popupclose', function () {
-            for (const poly2 of allPolygons[key]) {
-                poly2.setStyle({
-                    fillColor: 'darkred',
-                    fillOpacity: 0.1,
-                    weight: 1,
-                    color: 'darkred'
-                });
+         map.on('overlayremove', function (eventLayer) {
+            if (eventLayer.layer._leaflet_id === 1) {
+                map.removeLayer(popupHull);
             }
-        });
+        })
 
 
     function sliderChanged() {
@@ -382,16 +379,16 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
         for (const poly2 of allPolygons[key]) {
             poly2.setStyle({
                 fillColor: 'darkred',
-                fillOpacity: 0.1,
+                fillOpacity: fillOpacity,
                 weight: 1,
-                color: 'darkred'
+                color: 'black'
             });
         }
         sliderPolygon.setStyle({
             fillColor: 'orange',
-            fillOpacity: 0.5,
+            fillOpacity: fillOpacity,
             weight: 2,
-            color: 'orange'
+            color: 'black'
         });
         sliderPolygon.bringToFront();
     }
@@ -414,8 +411,9 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
         forcastPolygons.addLayer(textLabel);
         forcastPolygons.addTo(map);
 
+
         if (!forecastControl) {
-            controlLayer.addOverlay(forcastPolygons, "Forecast");
+            controlLayer.addOverlay(forcastPolygons, " Forecast <img src='./icons/click_finger_black.png' alt='Icon' width='20' height='20'>");
             forecastControl = true;
         }
 

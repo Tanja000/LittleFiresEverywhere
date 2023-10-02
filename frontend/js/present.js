@@ -277,20 +277,22 @@ async function getMap() {
 
         async function startClick() {
             if (timeSeries7days === null) {
+                createWheelWaiting(map);
                 console.log("wait for 3 seconds");
                 setTimeout(function () {
                     startClick();
                 }, 3000);
             }
+            else {
+                const bounds = rectangle.getBounds();
+                map.removeLayer(rectangle);
+                map.removeLayer(textLabel);
 
-            const bounds = rectangle.getBounds();
-            map.removeLayer(rectangle);
-            map.removeLayer(textLabel);
+                map.setView(center, 4);
 
-            map.setView(center, 4);
-
-            get24hoursLayer(bounds);
-            await loadForcastInBackground(bounds);
+                get24hoursLayer(bounds);
+                await loadForcastInBackground(bounds);
+            }
         }
         textLabel.on('click', startClick);
         rectangle.on('click', startClick);
@@ -408,28 +410,31 @@ function deleteZoomLayers(){
 
 function get24hoursLayer(bounds){
     if (timeSeries24hours === null) {
+        createWheelWaiting(map);
         console.log("wait for 3 seconds")
         setTimeout(function () {
             get24hoursLayer(bounds);
         }, 3000);
     }
-    timeSeries24hours.features.forEach(function(feature) {
-        const coordinate = feature.geometry.coordinates;
-        const point = L.latLng(coordinate[1], coordinate[0]);
-        if (bounds.contains(point)) {
-            const properties = feature.properties;
-            let marker = iconsAtFireOrigin("MODIS FIRE", [coordinate[1], coordinate[0]], properties.confidence, properties.date, properties.time);
-            markers.push(marker);
+    else {
+        timeSeries24hours.features.forEach(function (feature) {
+            const coordinate = feature.geometry.coordinates;
+            const point = L.latLng(coordinate[1], coordinate[0]);
+            if (bounds.contains(point)) {
+                const properties = feature.properties;
+                let marker = iconsAtFireOrigin("MODIS FIRE", [coordinate[1], coordinate[0]], properties.confidence, properties.date, properties.time);
+                markers.push(marker);
+            }
+        });
+
+        if (!controlMarkersSet) {
+            ControlLayer.addOverlay(markersCluster, " Active Fires <img src='./icons/fire.png' alt='Icon' width='25' height='25'>");
+            controlMarkersSet = true;
         }
-    });
+        map.addLayer(markersCluster);
 
-    if (!controlMarkersSet) {
-        ControlLayer.addOverlay(markersCluster, 'Active Fires');
-        controlMarkersSet = true;
+        calculateBurningAreas(bounds);
     }
-    map.addLayer(markersCluster);
-
-    calculateBurningAreas(bounds);
 }
 
 
@@ -450,13 +455,16 @@ async function handleZoomChange(){
          if (timeSeries7days === null) {
              console.log("wait for 3 seconds");
              setTimeout(function () {
+                 createWheelWaiting(map);
                  handleZoomChange();
              }, 3000);
         }
-         if(!zoomForTimeSeries){
-             getTimeDimension(true, true);
+         else {
+             if (!zoomForTimeSeries) {
+                 getTimeDimension(true, true);
+             }
+             zoomForTimeSeries = true;
          }
-         zoomForTimeSeries = true;
      }
 }
 
@@ -534,6 +542,12 @@ async function loadForcastInBackground(bounds){
     let parsedCoordinates = {};
     let counterData = 0;
 
+    console.log(firstTimeWheel);
+    if(firstTimeWheel){
+        createWheelWaiting(map);
+        firstTimeWheel = false;
+    }
+
     timeSeries24hours.features.forEach(function(feature) {
         const properties = feature.properties;
         const geometry = feature.geometry.coordinates;
@@ -549,11 +563,6 @@ async function loadForcastInBackground(bounds){
         return;
     }
     let lastCall = false;
-
-    if(firstTimeWheel){
-        createWheelWaiting(map);
-        firstTimeWheel = false;
-    }
 
     let postData = [];
     let counter = 0;
@@ -749,7 +758,7 @@ function calculateBurningAreas(bounds){
             burningAreas.addTo(map);
 
             if (!controlAreasSet) {
-                ControlLayer.addOverlay(burningAreas, 'Burning Areas');
+                ControlLayer.addOverlay(burningAreas, 'Burning Areas<img src="./icons/burning_areas.png" alt="Icon" width="20" height="20">');
                 controlAreasSet = true;
             }
         }

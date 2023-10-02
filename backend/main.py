@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import urllib.request
 import json
@@ -14,12 +14,7 @@ import numpy as np
 import requests
 
 ####################
-# chane for deployment
-origins = [
-    # Tanja TODO: local host später löschen!!!
-    "http://127.0.0.1:4201",
-    "https://wildfires-1-f7510945.deta.app"
-]
+allowed_origin_prefix = "https://wildfires-"
 
 ndvi_from_API = True
 drive = True
@@ -30,11 +25,24 @@ api_url = "https://api.open-meteo.com/v1/forecast"
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+# Middleware hook to check allowed origins
+@app.middleware("http")
+async def check_allowed_origin(request: Request, call_next):
+    origin = request.headers.get("Origin")
+    # change for deployment
+    #TODO: delete last orign for final release
+    if origin and ((origin.startswith('https://wildfires') and origin.endswith('.deta.app')) or origin.endswith(('1:4201'))):
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = origin
+        return response
+    else:
+        return {"Origin not allowed"}
 
 drive_key = "a0g5kqh4m4i_VHKDKLqgj7m4Kpep1VTPer3Z3BpGtBwd"
 deta_drive = Deta(drive_key)
@@ -313,11 +321,12 @@ def calculate_new_coordinates(lat, lon, meteo_data):
 
     # evapotranspiration: hohe werte -> Verringerung des Feuchtigkeitsgehalts im Boden
 
+    #500 m/h, kann aber auf über 1 Km/h ansteigen
     R = 6371000  # Durchschnittlicher Erdradius in Metern
     direction_rad = math.radians(direction_degrees - 180)
     # pro 2 Stunden berechnet km/h -> km/2h
-    distance_m = speed_kmh / 2 * 1000  # Distanz = Geschwindigkeit * Zeit / in Meter umgerechenet
-    distance_m = distance_m * 0.5  # Annahme: Feuer breitet sich nicht mit Windgeschwindigkeit aus
+    distance_m = 500 + speed_kmh * 10 # Distanz = Geschwindigkeit * Zeit / in Meter umgerechenet
+    #distance_m = distance_m * 0.5  # Annahme: Feuer breitet sich nicht mit Windgeschwindigkeit aus
     if rain > 2:
         distance_m = 0
 
@@ -326,7 +335,7 @@ def calculate_new_coordinates(lat, lon, meteo_data):
         speed_factor = evapotranspiration
         temp_factor = temperature_2m / 40 + soil_temperature / 40
         factor = (1 + speed_factor) / slow_down_factor
-        distance_m = distance_m * factor * temp_factor
+        distance_m = 500 + distance_m * factor * temp_factor
 
     # Neue Koordinaten berechnen
     new_lat = round(math.degrees(math.asin(math.sin(math.radians(lat)) * math.cos(distance_m / R) +
@@ -574,9 +583,9 @@ async def receive_data(data: dict):
 
 # Download alle 3 Stunden planen
 # getModisCSV24h()
-# getModisCSV7days()
+#getModisCSV7days()
 # schedule.every(3).hours.do(getModisCSV24h)
-# schedule.every(3).hours.do(getModisCSV7days)
+schedule.every(3).hours.do(getModisCSV7days)
 # getNewNDVIDateAPI(10.23, 3.002)
 
 

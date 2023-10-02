@@ -38,8 +38,8 @@ async def check_allowed_origin(request: Request, call_next):
     origin = request.headers.get("Origin")
     # change for deployment
     #TODO: delete last orign for final release
-    if origin and ((origin.startswith('https://wildfires') and origin.endswith('.deta.app')) or origin.endswith(('1:4201'))):
-   # if origin and origin.startswith('https://wildfires') and origin.endswith('.deta.app'):
+   # if origin and ((origin.startswith('https://wildfires') and origin.endswith('.deta.app')) or origin.endswith(('1:4201'))):
+    if origin and origin.startswith('https://wildfires') and origin.endswith('.deta.app'):
         response = await call_next(request)
         response.headers["Access-Control-Allow-Origin"] = origin
         return response
@@ -487,7 +487,7 @@ def get_greatest_burning_areas():
     df['acq_date'] = pd.to_datetime(df['acq_date'])
     vorgestern = pd.to_datetime(vorgestern)
     filtered_df = df[df['acq_date'] > vorgestern]
-    filtered_coordinates = filtered_df[filtered_df['confidence'] > 90]
+    filtered_coordinates = filtered_df[filtered_df['confidence'] > 85]
 
     coordinate_groups = {}
     for i, row1 in filtered_coordinates.iterrows():
@@ -513,7 +513,7 @@ def get_greatest_burning_areas():
     for key, value in coordinate_groups.items():
         if value:
             num_coords = len(value)
-            if num_coords >= 30:
+            if num_coords >= 15:
                 first_coord = df.loc[key, ['latitude', 'longitude']].values.tolist()
                 first_date = df.loc[key, ['acq_date']].values.tolist()
                 confidence_values = df.loc[value, 'confidence'].values
@@ -526,8 +526,10 @@ def get_greatest_burning_areas():
     duplizierte_df = duplizierte_df.sort_values(by=['NumberOfPoints'], ascending=[False])
     final_df = duplizierte_df.head(200)
     final_df['State'], final_df['Country'] = zip(*final_df.apply(lambda row: get_location_info(row['Latitude'], row['Longitude']), axis=1))
+    final_df = final_df.dropna(subset=['Country'])
+    final_df = final_df.dropna(subset=['Country']).replace("", np.nan).dropna(subset=['Country'])
+    final_df = final_df.dropna(subset=['State']).replace("", np.nan).dropna(subset=['State'])
     final_df = final_df.drop_duplicates(subset=['State', 'Country'], keep='first')
-    print(final_df)
     final_df.to_csv('../frontend/public/data/greatestBurningAreas.csv', index=False)
 
 @app.post("/process_data1")
@@ -653,7 +655,7 @@ async def receive_data(data: dict):
 # Download alle 3 Stunden planen
 # getModisCSV24h()
 #getModisCSV7days()
-get_greatest_burning_areas()
+#get_greatest_burning_areas()
 # schedule.every(3).hours.do(getModisCSV24h)
 schedule.every(3).hours.do(getModisCSV7days)
 schedule.every(12).hours.do(get_greatest_burning_areas)

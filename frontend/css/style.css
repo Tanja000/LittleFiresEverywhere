@@ -1364,11 +1364,46 @@ ul.portfolio-image li .desc{
   color: #009879;
 }
 
-@media screen and (max-width: 600px) {
+@media screen and (max-width: 300px) {
   .content-table {
-                width: 100%;
-            }
-        }
+    border: 0;
+  }
+
+  .content-table thead {
+    border: none;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    width: 1px;
+  }
+
+  .content-table tr {
+    border-bottom: 3px solid #ddd;
+    display: block;
+    margin-bottom: .625em;
+    background-color: rgba(139, 0, 0, .1) ;
+  }
+
+  .content-table td {
+    border-bottom: 1px solid #ddd;
+    display: block;
+    text-align: right;
+  }
+
+  .content-table td::before {
+    content: attr(data-label);
+    float: left;
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+
+  .content-table td:last-child {
+    border-bottom: 0;
+  }
+}
 
 
 

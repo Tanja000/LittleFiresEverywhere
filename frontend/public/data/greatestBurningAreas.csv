@@ -1,4 +1,6 @@
 Latitude,Longitude,NumberOfPoints,AverageConfidence,AcqDate,State,Country
--13.42596,142.73694,260,99.0,[Timestamp('2023-10-01 00:00:00')],Queensland,Australia
--37.7537,147.05876,42,99.11904761904762,[Timestamp('2023-10-01 00:00:00')],Victoria,Australia
--7.57386,-43.23002,34,99.5,[Timestamp('2023-10-01 00:00:00')],Piauí,Brazil
+-13.19592,142.68158,18651,99.98370060586564,[Timestamp('2023-10-01 00:00:00')],Queensland,Australia
+-22.21332,117.66602,116,95.5,[Timestamp('2023-10-01 00:00:00')],Western Australia,Australia
+-37.7537,147.05876,43,98.83720930232558,[Timestamp('2023-10-01 00:00:00')],Victoria,Australia
+-7.57386,-43.23002,38,98.36842105263158,[Timestamp('2023-10-01 00:00:00')],Piauí,Brazil
+-11.29718,-43.82858,19,99.05263157894737,[Timestamp('2023-10-01 00:00:00')],Bahia,Brazil

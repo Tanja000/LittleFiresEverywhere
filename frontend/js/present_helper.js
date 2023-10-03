@@ -69,68 +69,6 @@ export function extract24Hours(timeSeries7days){
         }
     }
 
-    //select largest areas
-  /*  filteredFeatures.features.forEach(function(feature) {
-        const coordinate = feature.geometry.coordinates;
-        const confidence = feature.properties.confidence;
-        if(confidence >= 80) {
-            coordinatesAll.push([coordinate, confidence]);
-        }
-    });
-    const turfPoints = coordinatesAll.map(function (coordinate) {
-        const turfP = turf.point(coordinate[0]);
-        turfP.properties.confidence = coordinate[1];
-        return turfP;
-    });
-
-    const options = {units: 'kilometers', cluster: true};
-    const featureCollectionTurf = turf.featureCollection(turfPoints);
-    const nearestPoints = turf.clustersDbscan(featureCollectionTurf, 5, options);
-
-
-    nearestPoints.features.forEach(cluster => {
-            const prop = cluster.properties;
-            if ("cluster" in prop){
-                const groupProperty = prop.cluster;
-                if (!featureGroups[groupProperty]) {
-                    featureGroups[groupProperty] = [];
-                }
-                featureGroups[groupProperty].push(cluster);
-            }
-        });
-
-    for (let [key, value] of Object.entries(featureGroups)) {
-        let polyCoordinates1 = [];
-        let polyCoordinates2 = [];
-        if (Object.keys(value).length >= 20) {
-            let noOfFires = 0;
-            let averageConfidence = 0;
-            for (let [key1, value1] of Object.entries(value)) {
-                polyCoordinates1.push([value1.geometry.coordinates[0], value1.geometry.coordinates[1]]);
-                noOfFires += 1;
-                averageConfidence += parseInt(value1.properties.confidence);
-            }
-            averageConfidence = averageConfidence / noOfFires;
-            pointsInGroups.push([polyCoordinates1, averageConfidence, noOfFires]);
-        }
-        if (Object.keys(value).length >= 5) {
-            let turfPoints = [];
-            for (let [key1, value1] of Object.entries(value)) {
-                polyCoordinates2.push([value1.geometry.coordinates[0], value1.geometry.coordinates[1]]);
-            }
-            for (const coord of polyCoordinates2){
-                const newTurfPoint = turf.point(coord);
-                turfPoints.push(newTurfPoint);
-            }
-            const points = turf.featureCollection(turfPoints);
-            const boundingPolygon = turf.convex(points);
-            const bufferedPolygon = turf.buffer(boundingPolygon, 100, { units: 'meters' });
-            burningAreasPolygons.push(bufferedPolygon);
-        }
-    }
-
-    console.log(pointsInGroups);*/
-
     return filteredFeatures;
 }
 

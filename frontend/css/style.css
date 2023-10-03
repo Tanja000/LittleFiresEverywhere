@@ -1324,51 +1324,57 @@ ul.portfolio-image li .desc{
 }
 
 /*---------------------------------------------Table------------------------------------------*/
-.content-table {
-  border-collapse: collapse;
+.col-md-12 table {
+  table-layout: fixed;
+  width: 100%;
   margin: 25px 0;
   font-size: 0.9em;
-  min-width: 400px;
+  min-width: 300px;
   border-radius: 5px 5px 0 0;
   overflow: hidden;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-  width: 100%;
+  text-align: left;
 }
 
-.content-table thead tr {
+.col-md-12 thead tr {
   background-color: darkred;
   color: #ffffff;
   text-align: left;
   font-weight: bold;
 }
 
-.content-table th,
-.content-table td {
+.col-md-12 th,
+.col-md-12 td {
   padding: 12px 15px;
 }
 
-.content-table tbody tr {
+.col-md-12 tbody tr {
   border-bottom: 1px solid #dddddd;
 }
 
-.content-table tbody tr:nth-of-type(even) {
+.col-md-12 tbody tr:nth-of-type(even) {
   background-color: #f3f3f3;
 }
 
-.content-table tbody tr:last-of-type {
+.col-md-12 tbody tr:last-of-type {
   border-bottom: 2px solid darkred;
 }
 
-.content-table tbody tr.active-row {
-  font-weight: bold;
-  color: #009879;
-}
 
-@media screen and (max-width: 300px) {
-  .content-table {
+@media screen and (max-width: 500px) {
+  .col-md-12 table {
     border: 0;
+    font-size: 10px;
   }
-
+  .col-md-12 th,
+  .col-md-12 td{
+    padding: 0px 0px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+/*
   .content-table thead {
     border: none;
     clip: rect(0 0 0 0);
@@ -1385,12 +1391,13 @@ ul.portfolio-image li .desc{
     display: block;
     margin-bottom: .625em;
     background-color: rgba(139, 0, 0, .1) ;
+    max-width: 380px;
   }
 
   .content-table td {
     border-bottom: 1px solid #ddd;
     display: block;
-    text-align: right;
+    text-align: left;
   }
 
   .content-table td::before {
@@ -1403,7 +1410,7 @@ ul.portfolio-image li .desc{
   .content-table td:last-child {
     border-bottom: 0;
   }
-}
+}*/
 
 
 

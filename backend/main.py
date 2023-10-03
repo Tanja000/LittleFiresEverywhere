@@ -38,8 +38,8 @@ async def check_allowed_origin(request: Request, call_next):
     origin = request.headers.get("Origin")
     # change for deployment
     #TODO: delete last orign for final release
-   # if origin and ((origin.startswith('https://wildfires') and origin.endswith('.deta.app')) or origin.endswith(('1:4201'))):
-    if origin and origin.startswith('https://wildfires') and origin.endswith('.deta.app'):
+    if origin and ((origin.startswith('https://wildfires') and origin.endswith('.deta.app')) or origin.endswith(('1:4201'))):
+   # if origin and origin.startswith('https://wildfires') and origin.endswith('.deta.app'):
         response = await call_next(request)
         response.headers["Access-Control-Allow-Origin"] = origin
         return response

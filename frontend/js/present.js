@@ -497,6 +497,7 @@ function get24hoursLayer(bounds){
         }
         map.addLayer(markersCluster);
 
+        console.log("get burning areas")
         calculateBurningAreas(bounds);
     }
 }
@@ -768,7 +769,7 @@ function calculateBurningAreas(bounds){
     let coordinatesAll = [];
     timeSeries24hours.features.forEach(function(feature) {
         const coordinate = feature.geometry.coordinates;
-        const point = L.latLng(coordinate);
+        const point = L.latLng([coordinate[1], coordinate[0]]);
         if (bounds.contains(point)) {
             coordinatesAll.push(coordinate);
         }

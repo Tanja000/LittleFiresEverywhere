@@ -1,6 +1,9 @@
 Latitude,Longitude,NumberOfPoints,AverageConfidence,AcqDate,State,Country
--13.19592,142.68158,18651,99.98370060586564,[Timestamp('2023-10-01 00:00:00')],Queensland,Australia
--22.21332,117.66602,116,95.5,[Timestamp('2023-10-01 00:00:00')],Western Australia,Australia
--37.7537,147.05876,43,98.83720930232558,[Timestamp('2023-10-01 00:00:00')],Victoria,Australia
--7.57386,-43.23002,38,98.36842105263158,[Timestamp('2023-10-01 00:00:00')],Piauí,Brazil
--11.29718,-43.82858,19,99.05263157894737,[Timestamp('2023-10-01 00:00:00')],Bahia,Brazil
+-20.03757,128.50612,109151096,97.77512273445244,[Timestamp('2023-10-02 00:00:00')],Western Australia,Australia
+-32.97428,-65.7597,1142919,96.79310344827586,[Timestamp('2023-10-02 00:00:00')],San Luis,Argentina
+-14.90716,-65.15741,1079265,99.99870745368376,[Timestamp('2023-10-03 00:00:00')],Beni,Bolivia
+-37.73652,147.22021,1332,98.35585585585585,[Timestamp('2023-10-02 00:00:00')],Victoria,Australia
+-12.85892,-45.23364,684,99.16666666666667,[Timestamp('2023-10-02 00:00:00')],Bahia,Brazil
+-9.47357,-44.78817,116,99.0,[Timestamp('2023-10-02 00:00:00')],Piauí,Brazil
+-18.34259,141.92795,28,100.0,[Timestamp('2023-10-03 00:00:00')],Queensland,Australia
+-31.42348,136.41296,20,98.55,[Timestamp('2023-10-02 00:00:00')],South Australia,Australia

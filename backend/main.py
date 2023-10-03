@@ -1,3 +1,4 @@
+import threading
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import urllib.request
@@ -12,7 +13,6 @@ import pandas as pd
 from io import StringIO
 import numpy as np
 import requests
-
 
 ####################
 allowed_origin_prefix = "https://wildfires-"
@@ -38,8 +38,8 @@ async def check_allowed_origin(request: Request, call_next):
     origin = request.headers.get("Origin")
     # change for deployment
     #TODO: delete last orign for final release
-    if origin and ((origin.startswith('https://wildfires') and origin.endswith('.deta.app')) or origin.endswith(('1:4201'))):
-   # if origin and origin.startswith('https://wildfires') and origin.endswith('.deta.app'):
+   # if origin and ((origin.startswith('https://wildfires') and origin.endswith('.deta.app')) or origin.endswith(('1:4201'))):
+    if origin and origin.startswith('https://wildfires') and origin.endswith('.deta.app'):
         response = await call_next(request)
         response.headers["Access-Control-Allow-Origin"] = origin
         return response
@@ -241,6 +241,7 @@ def getNDVIDataModisAPI(latitude, longitude):
 
 
 def getModisCSV7days():
+    print("start collection new modis data")
     # latitude, longitude, brightness, scan, track, acq_date, acq_time, satellite, confidence, version, bright_t31, frp, daynight
     url = 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_7d.csv'
     spalten_zu_behalten = ['latitude', 'longitude', 'acq_date', 'acq_time', 'confidence']
@@ -480,6 +481,7 @@ def get_location_info(latitude, longitude):
         return None, None
 
 def get_greatest_burning_areas():
+    print("start top list")
     response = deta_file.get(filename)
     df = pd.read_csv(response, usecols=['latitude', 'longitude', 'confidence', 'acq_date'])
     current_date = datetime.now().date()
@@ -487,50 +489,56 @@ def get_greatest_burning_areas():
     df['acq_date'] = pd.to_datetime(df['acq_date'])
     vorgestern = pd.to_datetime(vorgestern)
     filtered_df = df[df['acq_date'] > vorgestern]
-    filtered_coordinates = filtered_df[filtered_df['confidence'] > 85]
+    filtered_coordinates = filtered_df[filtered_df['confidence'] > 90]
 
-    coordinate_groups = {}
-    for i, row1 in filtered_coordinates.iterrows():
-        if i not in coordinate_groups:
-            coordinate_groups[i] = [i]
+    if not filtered_coordinates.empty:
+        coordinate_groups = {}
+        for i, row1 in filtered_coordinates.iterrows():
+            if i not in coordinate_groups:
+                coordinate_groups[i] = [i]
 
-        for j, row2 in filtered_coordinates.iterrows():
-            if i != j:
-                distance = haversine_distance(row1['latitude'], row1['longitude'], row2['latitude'], row2['longitude'])
-                if distance < 5000:
-                    if j not in coordinate_groups:
-                        coordinate_groups[i].append(j)
-                        coordinate_groups[j] = coordinate_groups[i]
-                    elif j != i:
-                        group_i = coordinate_groups[i]
-                        group_j = coordinate_groups[j]
-                        coordinate_groups[i] = group_i + group_j
-                        for coord_id in group_j:
-                            coordinate_groups[coord_id] = group_i
+            for j, row2 in filtered_coordinates.iterrows():
+                if i != j:
+                    distance = haversine_distance(row1['latitude'], row1['longitude'], row2['latitude'], row2['longitude'])
+                    if distance < 3000:
+                        if j not in coordinate_groups:
+                            coordinate_groups[i].append(j)
+                            coordinate_groups[j] = coordinate_groups[i]
+                        elif j != i:
+                            group_i = coordinate_groups[i]
+                            group_j = coordinate_groups[j]
+                            coordinate_groups[i] = group_i + group_j
+                            for coord_id in group_j:
+                                coordinate_groups[coord_id] = group_i
 
+        result_data = []
+        for key, value in coordinate_groups.items():
+            if value:
+                num_coords = len(value)
+                if num_coords >= 20:
+                    first_coord = df.loc[key, ['latitude', 'longitude']].values.tolist()
+                    first_date = df.loc[key, ['acq_date']].values.tolist()
+                    confidence_values = df.loc[value, 'confidence'].values
+                    average = confidence_values.mean()
+                    result_data.append([first_coord[0], first_coord[1], num_coords, average, first_date])
 
-    result_data = []
-    for key, value in coordinate_groups.items():
-        if value:
-            num_coords = len(value)
-            if num_coords >= 15:
-                first_coord = df.loc[key, ['latitude', 'longitude']].values.tolist()
-                first_date = df.loc[key, ['acq_date']].values.tolist()
-                confidence_values = df.loc[value, 'confidence'].values
-                average = confidence_values.mean()
-                result_data.append([first_coord[0], first_coord[1], num_coords, average, first_date])
-
-    result_df = pd.DataFrame(result_data, columns=['Latitude', 'Longitude', 'NumberOfPoints', 'AverageConfidence', 'AcqDate'])
-    result_df['AcqDate'] = result_df['AcqDate'].astype(str)
-    duplizierte_df = result_df.drop_duplicates(subset=['NumberOfPoints', 'AverageConfidence', 'AcqDate'], keep='first')
-    duplizierte_df = duplizierte_df.sort_values(by=['NumberOfPoints'], ascending=[False])
-    final_df = duplizierte_df.head(200)
-    final_df['State'], final_df['Country'] = zip(*final_df.apply(lambda row: get_location_info(row['Latitude'], row['Longitude']), axis=1))
-    final_df = final_df.dropna(subset=['Country'])
-    final_df = final_df.dropna(subset=['Country']).replace("", np.nan).dropna(subset=['Country'])
-    final_df = final_df.dropna(subset=['State']).replace("", np.nan).dropna(subset=['State'])
-    final_df = final_df.drop_duplicates(subset=['State', 'Country'], keep='first')
-    final_df.to_csv('../frontend/public/data/greatestBurningAreas.csv', index=False)
+        result_df = pd.DataFrame(result_data, columns=['Latitude', 'Longitude', 'NumberOfPoints', 'AverageConfidence', 'AcqDate'])
+        if not result_df.empty:
+            result_df['AcqDate'] = result_df['AcqDate'].astype(str)
+            duplizierte_df = result_df.drop_duplicates(subset=['NumberOfPoints', 'AverageConfidence', 'AcqDate'], keep='first')
+            duplizierte_df = duplizierte_df.sort_values(by=['NumberOfPoints'], ascending=[False])
+            final_df = duplizierte_df.head(200)
+            final_df['State'], final_df['Country'] = zip(*final_df.apply(lambda row: get_location_info(row['Latitude'], row['Longitude']), axis=1))
+            final_df = final_df.dropna(subset=['Country'])
+            final_df = final_df.dropna(subset=['Country']).replace("", np.nan).dropna(subset=['Country'])
+            final_df = final_df.dropna(subset=['State']).replace("", np.nan).dropna(subset=['State'])
+            final_df = final_df.drop_duplicates(subset=['State', 'Country'], keep='first')
+            final_df.to_csv('../frontend/public/data/greatestBurningAreas.csv', index=False)
+        else:
+            print("no data for country list")
+    else:
+        print("top country list: no filtered date data")
+    print("end top list")
 
 @app.post("/process_data1")
 async def receive_data(data: dict):
@@ -657,13 +665,24 @@ async def receive_data(data: dict):
 #getModisCSV7days()
 #get_greatest_burning_areas()
 # schedule.every(3).hours.do(getModisCSV24h)
-schedule.every(3).hours.do(getModisCSV7days)
-schedule.every(12).hours.do(get_greatest_burning_areas)
+
+#schedule.every(5).seconds.do(get_greatest_burning_areas)
 # getNewNDVIDateAPI(10.23, 3.002)
+#get_greatest_burning_areas()
 
+def starte_scheduler():
+    schedule.every(3).hours.do(getModisCSV7days)
+    schedule.every(12).hours.do(get_greatest_burning_areas)
 
-if __name__ == '__main__':
-    app.run(debug=True)
     while True:
         schedule.run_pending()
         time.sleep(1)
+
+scheduler_thread = threading.Thread(target=starte_scheduler)
+scheduler_thread.start()
+
+if __name__ == '__main__':
+    app.run(debug=True)
+    #while True:
+    #    schedule.run_pending()
+    #    time.sleep(1)

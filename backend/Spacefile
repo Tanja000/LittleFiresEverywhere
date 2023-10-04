@@ -5,5 +5,10 @@ micros:
     engine: python3.9
     primary: true
     run: uvicorn main:app
+    actions:
+      - id: "getModisCSV7days"
+        name: "getModisCSV7days"
+        trigger: "schedule"
+        default_interval: "2 hours"
     public_routes:
        - "*"

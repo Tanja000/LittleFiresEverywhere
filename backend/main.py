@@ -6,8 +6,6 @@ import json
 from pydantic import BaseModel
 import math
 from datetime import datetime, timedelta
-import time
-import schedule
 from deta import Deta
 import pandas as pd
 from io import StringIO
@@ -32,19 +30,19 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# Middleware hook to check allowed origins
-@app.middleware("http")
-async def check_allowed_origin(request: Request, call_next):
-    origin = request.headers.get("Origin")
-    # change for deployment
-    #TODO: delete last orign for final release
-   # if origin and ((origin.startswith('https://wildfires') and origin.endswith('.deta.app')) or origin.endswith(('1:4201'))):
-    if origin and origin.startswith('https://wildfires') and origin.endswith('.deta.app'):
-        response = await call_next(request)
-        response.headers["Access-Control-Allow-Origin"] = origin
-        return response
-    else:
-        return {"Origin not allowed"}
+# #Middleware hook to check allowed origins
+# @app.middleware("http")
+# async def check_allowed_origin(request: Request, call_next):
+#    origin = request.headers.get("Origin")
+#    # change for deployment
+#    #TODO: delete last orign for final release
+#   # if origin and ((origin.startswith('https://wildfires') and origin.endswith('.deta.app')) or origin.endswith(('1:4201'))):
+#    if origin and origin.startswith('https://wildfires') and origin.endswith('.deta.app'):
+#        response = await call_next(request)
+#        response.headers["Access-Control-Allow-Origin"] = origin
+#        return response
+#    else:
+#        return {"Origin not allowed"}
 
 drive_key = "a0g5kqh4m4i_VHKDKLqgj7m4Kpep1VTPer3Z3BpGtBwd"
 deta_drive = Deta(drive_key)
@@ -178,6 +176,7 @@ def getNVIDataModis():
     [ndvi_list, minus90] = ndviDataToDCoordinatesDict(ndvi_data, lat_center, lng_center)
     return [ndvi_list, minus90]
 
+
 def transform_coordinates(latitude, longitude):
     # Begrenze die Breitengradwerte auf den Bereich von -90 bis 90
     latitude = max(min(latitude, 90.0), -90.0)
@@ -191,7 +190,8 @@ def transform_coordinates(latitude, longitude):
 def getNewNDVIDateAPI(latitude, longitude):
     print("start new date")
     header = {'Accept': 'application/json'}
-    url_date = "https://modis.ornl.gov/rst/api/v1/MOD13Q1/dates?latitude=" + str(latitude) + "&longitude=" + str(longitude)
+    url_date = "https://modis.ornl.gov/rst/api/v1/MOD13Q1/dates?latitude=" + str(latitude) + "&longitude=" + str(
+        longitude)
     try:
         response = requests.get(url_date, header)
         if response.status_code == 200:
@@ -205,6 +205,7 @@ def getNewNDVIDateAPI(latitude, longitude):
     except Exception as ex:
         print("Ein unerwarteter Fehler ist aufgetreten:", ex)
 
+
 def getNDVIDataModisAPI(latitude, longitude):
     # cellsize": 231.656358264 meters
     header = {'Accept': 'application/json'}
@@ -214,7 +215,8 @@ def getNDVIDataModisAPI(latitude, longitude):
     newest_date = df_date.iloc[0].tolist()[0]
     ndvi_date = df_date.iloc[0].tolist()[1]
 
-    url = "https://modis.ornl.gov/rst/api/v1/MOD13Q1/subset?latitude=" + str(longitude) + "&longitude=" + str(latitude) + "&startDate=" + newest_date + "&endDate=" + newest_date + "&kmAboveBelow=1&kmLeftRight=1"
+    url = "https://modis.ornl.gov/rst/api/v1/MOD13Q1/subset?latitude=" + str(longitude) + "&longitude=" + str(
+        latitude) + "&startDate=" + newest_date + "&endDate=" + newest_date + "&kmAboveBelow=1&kmLeftRight=1"
 
     try:
         response = requests.get(url, header)
@@ -324,12 +326,12 @@ def calculate_new_coordinates(lat, lon, meteo_data):
 
     # evapotranspiration: hohe werte -> Verringerung des Feuchtigkeitsgehalts im Boden
 
-    #500 m/h, kann aber auf über 1 Km/h ansteigen
+    # 500 m/h, kann aber auf über 1 Km/h ansteigen
     R = 6371000  # Durchschnittlicher Erdradius in Metern
     direction_rad = math.radians(direction_degrees - 180)
     # pro 2 Stunden berechnet km/h -> km/2h
-    distance_m = 500 + speed_kmh * 10 # Distanz = Geschwindigkeit * Zeit / in Meter umgerechenet
-    #distance_m = distance_m * 0.5  # Annahme: Feuer breitet sich nicht mit Windgeschwindigkeit aus
+    distance_m = 500 + speed_kmh * 10  # Distanz = Geschwindigkeit * Zeit / in Meter umgerechenet
+    # distance_m = distance_m * 0.5  # Annahme: Feuer breitet sich nicht mit Windgeschwindigkeit aus
     if rain > 2:
         distance_m = 0
 
@@ -419,6 +421,7 @@ def round_to_next_hour(time_str):
     rounded_hour = rounded_time_obj.hour
     return rounded_hour
 
+
 def get_new_ndvi(lat, lng):
     if ndvi_from_API:
         [ndvi, minus90] = getNDVIDataModisAPI(lat, lng)
@@ -467,7 +470,7 @@ def get_new_coordinate(lat, lng, date, time_str):
 
 def get_location_info(latitude, longitude):
     url = f"https://geocode.maps.co/reverse?lat=" + str(latitude) + "&lon=" + str(longitude)
-    #url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={latitude}&lon={longitude}&zoom=18&addressdetails=1"
+    # url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={latitude}&lon={longitude}&zoom=18&addressdetails=1"
 
     try:
         response = requests.get(url)
@@ -479,6 +482,7 @@ def get_location_info(latitude, longitude):
     except Exception as e:
         print(f"Fehler beim Abrufen von Daten: {e}")
         return None, None
+
 
 def get_greatest_burning_areas():
     print("start top list")
@@ -499,7 +503,8 @@ def get_greatest_burning_areas():
 
             for j, row2 in filtered_coordinates.iterrows():
                 if i != j:
-                    distance = haversine_distance(row1['latitude'], row1['longitude'], row2['latitude'], row2['longitude'])
+                    distance = haversine_distance(row1['latitude'], row1['longitude'], row2['latitude'],
+                                                  row2['longitude'])
                     if distance < 3000:
                         if j not in coordinate_groups:
                             coordinate_groups[i].append(j)
@@ -522,13 +527,16 @@ def get_greatest_burning_areas():
                     average = confidence_values.mean()
                     result_data.append([first_coord[0], first_coord[1], num_coords, average, first_date])
 
-        result_df = pd.DataFrame(result_data, columns=['Latitude', 'Longitude', 'NumberOfPoints', 'AverageConfidence', 'AcqDate'])
+        result_df = pd.DataFrame(result_data,
+                                 columns=['Latitude', 'Longitude', 'NumberOfPoints', 'AverageConfidence', 'AcqDate'])
         if not result_df.empty:
             result_df['AcqDate'] = result_df['AcqDate'].astype(str)
-            duplizierte_df = result_df.drop_duplicates(subset=['NumberOfPoints', 'AverageConfidence', 'AcqDate'], keep='first')
+            duplizierte_df = result_df.drop_duplicates(subset=['NumberOfPoints', 'AverageConfidence', 'AcqDate'],
+                                                       keep='first')
             duplizierte_df = duplizierte_df.sort_values(by=['NumberOfPoints'], ascending=[False])
             final_df = duplizierte_df.head(200)
-            final_df['State'], final_df['Country'] = zip(*final_df.apply(lambda row: get_location_info(row['Latitude'], row['Longitude']), axis=1))
+            final_df['State'], final_df['Country'] = zip(
+                *final_df.apply(lambda row: get_location_info(row['Latitude'], row['Longitude']), axis=1))
             final_df = final_df.dropna(subset=['Country'])
             final_df = final_df.dropna(subset=['Country']).replace("", np.nan).dropna(subset=['Country'])
             final_df = final_df.dropna(subset=['State']).replace("", np.nan).dropna(subset=['State'])
@@ -539,6 +547,7 @@ def get_greatest_burning_areas():
     else:
         print("top country list: no filtered date data")
     print("end top list")
+
 
 @app.post("/process_data1")
 async def receive_data(data: dict):
@@ -660,29 +669,53 @@ async def receive_data(data: dict):
     return {"coordinates": coordinates_dict, "meteo_data": meteo_dict, 'ndvi_data': ndvi_dict, 'minus90': minus90}
 
 
+@app.post("/__space/v0/actions")
+def actions(action: dict):
+    print(action)
+    getModisCSV24h()
+    if action['event']['id'] == "getModisCSV7days":
+        print("can be moved here")
+
+
+
+@app.get("/")
+def nothing_here():
+    print("there is nothing here")
+
+
+
 # Download alle 3 Stunden planen
 # getModisCSV24h()
-#getModisCSV7days()
-#get_greatest_burning_areas()
+# getModisCSV7days()
+# get_greatest_burning_areas()
 # schedule.every(3).hours.do(getModisCSV24h)
 
-#schedule.every(5).seconds.do(get_greatest_burning_areas)
+# schedule.every(5).seconds.do(get_greatest_burning_areas)
 # getNewNDVIDateAPI(10.23, 3.002)
-#get_greatest_burning_areas()
+# get_greatest_burning_areas()
 
-def starte_scheduler():
-    schedule.every(3).hours.do(getModisCSV7days)
-    schedule.every(12).hours.do(get_greatest_burning_areas)
+print("starting backend")
+#getModisCSV7days()
+# getModisCSV7days()
+# schedule.every(3).hours.do(getModisCSV7days)
+# schedule.every(12).hours.do(get_greatest_burning_areas)
+# getModisCSV7days()
+# app.run(debug=True)
 
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+# def starte_scheduler():
+#    print("started scheduler")
+#    schedule.every(3).hours.do(getModisCSV7days)
+# schedule.every(12).hours.do(get_greatest_burning_areas)
 
-scheduler_thread = threading.Thread(target=starte_scheduler)
-scheduler_thread.start()
+#    while True:
+#        schedule.run_pending()
+#        time.sleep(1)
+
+# scheduler_thread = threading.Thread(target=starte_scheduler)
+# scheduler_thread.start()
 
 if __name__ == '__main__':
     app.run(debug=True)
-    #while True:
+    # while True:
     #    schedule.run_pending()
     #    time.sleep(1)

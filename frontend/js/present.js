@@ -835,4 +835,4 @@ function calculateBurningAreas(bounds){
 console.log("starting app...")
 
 getMap();
-getTopListBurningAreas();
+//getTopListBurningAreas();

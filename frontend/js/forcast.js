@@ -147,13 +147,15 @@ function getCone(map, meteoData, squareList){
 
     for (const [key, value] of Object.entries(meteoData)) {
 
-        const coneBaseCenterLatLng = L.latLng(value.latitude, value.longitude);
+        let coneBaseCenterLatLng = [value.latitude, value.longitude];
 
         let hullCoordinates = turf.featureCollection([]);
         semiSphereCoordinates = [];
 
-        for (let i = 0; i < numPoints; i++) {
-            hullCoordinates.features.push(semiSpherePrevious[i]);
+        if(count != 0) {
+            for (let i = 0; i < numPoints; i++) {
+                hullCoordinates.features.push(semiSpherePrevious[i]);
+            }
         }
 
         if(Object.entries(squareList).length > 0) {
@@ -185,8 +187,8 @@ function getCone(map, meteoData, squareList){
         for (let i = 0; i < numPoints; i++)
         {
             const angle = (i / numPoints) * 2 * Math.PI;
-            const x = radiusMeters * Math.cos(angle) + coneBaseCenterLatLng.lng;
-            const y = radiusMeters * Math.sin(angle) + coneBaseCenterLatLng.lat;
+            const x = radiusMeters * Math.cos(angle) + coneBaseCenterLatLng[1];
+            const y = radiusMeters * Math.sin(angle) + coneBaseCenterLatLng[0];
 
             const newPoint = turf.point([x, y]);
             semiSphereCoordinates.push(newPoint);
@@ -200,15 +202,20 @@ function getCone(map, meteoData, squareList){
             continue;
          }
 
-        const latDiff = coneBaseCenterLatLng.lat - coneTipLatLngPrevious.lat;
-        const lngDiff = coneBaseCenterLatLng.lng - coneTipLatLngPrevious.lng;
+
+        const latDiff = coneBaseCenterLatLng[0] - coneTipLatLngPrevious[0];
+        const lngDiff = coneBaseCenterLatLng[1] - coneTipLatLngPrevious[1];
         const length = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-        const unitLat = latDiff / length;
-        const unitLng = lngDiff / length;
-        let y1 = coneBaseCenterLatLng.lat + (unitLng * (distanceMeters / 111319));
-        let x1 = coneBaseCenterLatLng.lng - (unitLat * (distanceMeters / 111319));
-        let y2 = coneBaseCenterLatLng.lat - (unitLng * (distanceMeters / 111319));
-        let x2 = coneBaseCenterLatLng.lng + (unitLat * (distanceMeters / 111319));;
+        let unitLat = 0;
+        let unitLng = 0;
+        if(coneBaseCenterLatLng[0] != coneTipLatLngPrevious[0] && coneBaseCenterLatLng[1] != coneTipLatLngPrevious[1]){
+            unitLat = latDiff / length;
+            unitLng = lngDiff / length;
+        }
+        let y1 = coneBaseCenterLatLng[0] + (unitLng * (distanceMeters / 111319));
+        let x1 = coneBaseCenterLatLng[1] - (unitLat * (distanceMeters / 111319));
+        let y2 = coneBaseCenterLatLng[0] - (unitLng * (distanceMeters / 111319));
+        let x2 = coneBaseCenterLatLng[1] + (unitLat * (distanceMeters / 111319));
         let newPoint = turf.point([x1, y1]);
         hullCoordinates.features.push(newPoint);
         newPoint = turf.point([x2, y2]);
@@ -443,7 +450,12 @@ export function getForcastLayer(map, ndviData, coordData, meteoData, key, Contro
     }
    // trajectoryToMap(map, coordData);
     const polyLayers = getCone(map, coordData, squareList);
-    getPopupForCones(polyLayers, meteoData, key, startTime, date, map, ControlLayer, lastCall)
+    if(polyLayers.length > 0) {
+        getPopupForCones(polyLayers, meteoData, key, startTime, date, map, ControlLayer, lastCall)
+    }
+    else{
+        deleteWheelWaiting();
+    }
     return;
 }
 

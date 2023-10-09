@@ -182,7 +182,6 @@ function deletePopup(){
 }
 
 async function getMap() {
-
   /*  const osm = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 21,
         attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
@@ -278,9 +277,12 @@ async function getMap() {
         {bounds: [[30.93, -95.14], [10.93, -60.07]]},
         {bounds: [[10.93, -87.14], [0.93, -45.07]]},
         {bounds: [[0.93, -83.14], [-10.93, -60.07]]},
-        {bounds: [[-10.93, -83.14], [-20.93, -60.07]]},
-        {bounds: [[0.93, -60.07], [-10.93, -30.07]]},
-        {bounds: [[-10.93, -60.07], [-20.93, -30.07]]},
+        {bounds: [[-10.93, -83.14], [-20.93, -68.07]]},
+        {bounds: [[-10.93, -68.14], [-20.93, -60.07]]},
+        {bounds: [[0.93, -60.07], [-10.93, -47.07]]},
+        {bounds: [[0.93, -47.07], [-10.93, -30.07]]},
+        {bounds: [[-10.93, -60.07], [-20.93, -47.07]]},
+        {bounds: [[-10.93, -47.07], [-20.93, -30.07]]},
         {bounds: [[-20.93, -80.07], [-35.93, -60.07]]},
         {bounds: [[-20.93, -60.07], [-35.93, -40.07]]},
         {bounds: [[-35.93, -80.07], [-58.93, -50.07]]},
@@ -312,10 +314,13 @@ async function getMap() {
         {bounds: [[18, 100], [0, 130]]},
         {bounds: [[0, 85], [-20, 125]]},
         {bounds: [[0, 125], [-10, 140]]},
-        {bounds: [[-10, 125], [-20, 140]]},
+        {bounds: [[-10, 125], [-20, 132]]},
+        {bounds: [[-10, 132], [-20, 140]]},
         {bounds: [[0, 140], [-20, 170]]},
-        {bounds: [[-20, 110], [-30, 135]]},
-        {bounds: [[-20, 135], [-30, 170]]},
+        {bounds: [[-20, 110], [-30, 125]]},
+        {bounds: [[-20, 125], [-30, 135]]},
+        {bounds: [[-20, 135], [-30, 145]]},
+        {bounds: [[-20, 145], [-30, 170]]},
         {bounds: [[-30, 110], [-60, 140]]},
         {bounds: [[-30, 140], [-60, 180]]},
     ];
@@ -607,7 +612,6 @@ async function loadForcastInBackground(bounds){
     let parsedCoordinates = {};
     let counterData = 0;
 
-    console.log(firstTimeWheel);
     if(firstTimeWheel){
         createWheelWaiting(map);
         firstTimeWheel = false;
@@ -691,7 +695,6 @@ function isNullOrEmptyObject(obj) {
 
 
 function fetchData(url, parsedCoordinates){
-    console.log(url);
     if(isNullOrEmptyObject(parsedCoordinates)){
         console.log("object is empty")
         return {};
@@ -774,10 +777,12 @@ function calculateBurningAreas(bounds){
             coordinatesAll.push(coordinate);
         }
     });
+
     const turfPoints = coordinatesAll.map(function (coordinate) {
         const turfP = turf.point(coordinate);
         return turfP;
     });
+
 
     const options = {units: 'kilometers', cluster: true};
     const featureCollectionTurf = turf.featureCollection(turfPoints);
@@ -832,7 +837,9 @@ function calculateBurningAreas(bounds){
     }
 }
 
+
 console.log("starting app...")
 
 getMap();
 //getTopListBurningAreas();
+

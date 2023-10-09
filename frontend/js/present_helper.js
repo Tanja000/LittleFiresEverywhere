@@ -61,12 +61,10 @@ export function extract24Hours(timeSeries7days){
 
     for (let i = 0; i < timeSeries7days.features.length; i++) {
         const feature = timeSeries7days.features[i];
-        //show only fires with confidence over 50
-        if(parseInt(feature.properties.confidence) >= 50) {
-            if (feature.properties.date === dates[8] || feature.properties.date === dates[7] || feature.properties.date === dates[6]) {
+        if (feature.properties.date === dates[8] || feature.properties.date === dates[7] || feature.properties.date === dates[6]) {
                 filteredFeatures.features.push(feature);
-            }
         }
+
     }
 
     return filteredFeatures;

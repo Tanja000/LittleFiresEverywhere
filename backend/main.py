@@ -1,5 +1,5 @@
-import threading
-from fastapi import FastAPI, Request
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import urllib.request
 import json
@@ -11,6 +11,9 @@ import pandas as pd
 from io import StringIO
 import numpy as np
 import requests
+import sys
+sys.stdout.flush()
+sys.stderr.flush()
 
 ####################
 allowed_origin_prefix = "https://wildfires-"
@@ -158,7 +161,7 @@ def ndviDataToDCoordinatesDict(ndvi_list, lat_center, lng_center):
 
 
 def getNVIDataModis():
-    dateiname = "../frontend/public/data/Modis_VGI_data.geojson"
+    dateiname = "./../frontend/public/data/Modis_VGI_data.geojson"
     df = pd.read_json(dateiname)
     nir_data = df['subset'][2]['data']
     red_data = df['subset'][4]['data']
@@ -253,6 +256,8 @@ def getModisCSV7days():
         df = pd.read_csv(url, usecols=spalten_zu_behalten, encoding='utf-8')
         # df_csv = df.to_csv(local_file, index=False, encoding="utf-8")
         # df = pd.read_csv(local_file)
+        # keep only values with confidence over 50
+        df = df[df['confidence'] > 50]
         df['acq_time'] = df['acq_time'].astype(str).str.rjust(4, '0')
         numpy_array = df.to_numpy()
         numpy_array = np.vstack([spalten_zu_behalten, numpy_array])
@@ -672,16 +677,14 @@ async def receive_data(data: dict):
 @app.post("/__space/v0/actions")
 def actions(action: dict):
     print(action)
-    getModisCSV24h()
-    if action['event']['id'] == "getModisCSV7days":
-        print("can be moved here")
+    getModisCSV7days()
+    #if action['event']['id'] == "getModisCSV7days":
+    #    print("can be moved here")
 
-
-
+#getModisCSV7days()
 @app.get("/")
 def nothing_here():
     print("there is nothing here")
-
 
 
 # Download alle 3 Stunden planen

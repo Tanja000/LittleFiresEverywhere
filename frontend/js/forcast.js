@@ -137,16 +137,19 @@ function isCoordinateInRectangle(coord, rectangle) {
 function getCone(map, meteoData, squareList){
     const distanceMeters = 30;
     let coneTipLatLngPrevious = L.latLng();
-    let radiusMeters = 0.0005;
+    let radiusMeters = 0.001;
     const numPoints = 40;
     let count = 0;
     let semiSpherePrevious = [];
     let semiSphereCoordinates = [];
     let hullLayers = [];
     let radiusAdd = 0;
+    let oldValue = "";
 
     for (const [key, value] of Object.entries(meteoData)) {
-
+        if(value.latitude == oldValue.latitude && value.longitude == oldValue.longitude){
+            return hullLayers;
+        }
         let coneBaseCenterLatLng = [value.latitude, value.longitude];
 
         let hullCoordinates = turf.featureCollection([]);
@@ -158,7 +161,7 @@ function getCone(map, meteoData, squareList){
             }
         }
 
-        if(Object.entries(squareList).length > 0) {
+    /*    if(Object.entries(squareList).length > 0) {
             for (const square of Object.entries(squareList)) {
                 if (isCoordinateInRectangle(coneBaseCenterLatLng, square[1])) {
                     const rectangleColor = square[1].options.fillColor;
@@ -181,8 +184,9 @@ function getCone(map, meteoData, squareList){
         }
         else{
             radiusAdd += 0.00005;
-        }
-        radiusMeters += radiusAdd
+        }*/
+        radiusMeters += 0.001;
+        oldValue = value;
 
         for (let i = 0; i < numPoints; i++)
         {
@@ -234,9 +238,10 @@ function getCone(map, meteoData, squareList){
 }
 
 
-function getNDVIMatrixLayer(ndviData, map, minus90, realForcast) {
+function getNDVIMatrixLayer(ndviData, map, realForcast) {
 
     const squareSize = 0.0028;
+    const cellSize = 231.656;
     const colorRanges = [
         {color: 'blue', min: -1, max: 0.05},
         {color: 'yellow', min: 0.05, max: 0.3},
@@ -246,19 +251,20 @@ function getNDVIMatrixLayer(ndviData, map, minus90, realForcast) {
     let count = 0;
     let squareList = [];
     if (!realForcast) {
-        ndviData = Object.values(ndviData)[0];
+        ndviData = Object.values(ndviData);
     }
+
 
     ndviData.forEach(data => {
             if (data) {
                 const value = data.ndvi;
                 let lng = data.coordinates[0][0];
-                if (minus90) {
+               /* if (minus90) {
                     lng -= 90;
-                }
+                }*/
                 let lat = data.coordinates[0][1];
-
-                let color = 'gray'; // Standardfarbe
+              //  var marker = L.marker([lat, lng]).addTo(map);
+           /*     let color = 'gray'; // Standardfarbe
                 for (const range of colorRanges) {
                     if (value >= range.min && value < range.max) {
                         color = range.color;
@@ -266,9 +272,9 @@ function getNDVIMatrixLayer(ndviData, map, minus90, realForcast) {
                     }
                 }
 
-                const square = L.rectangle([
-                    [lat - squareSize / 2, lng - squareSize / 2],
-                    [lat + squareSize / 2, lng + squareSize / 2],
+               const square = L.rectangle([
+                    data.square_edge[0],
+                    data.square_edge[1]
                 ], {
                     fillColor: color,
                     color: 'black',
@@ -276,7 +282,7 @@ function getNDVIMatrixLayer(ndviData, map, minus90, realForcast) {
                     fillOpacity: fillOpacity,
                 });
                 squareList.push(square);
-              //  square.addTo(map);
+                square.addTo(map);*/
             }
             count += 1;
         });
@@ -308,6 +314,7 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
             date = addOneDay(date);
         }
         const hour = hours[currentIndex]
+
         dates.push(date);
         times.push(newStartTime);
 
@@ -327,7 +334,8 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
             "<br>Rain: " + meteoData[hour]['rain'] + "mm" +
             "<br>Soil Temperature: " + meteoData[hour]['soil_temperature_0cm'] + "°C" +
             "<br>Soil Moisture: " + meteoData[hour]['soil_moisture_0_1cm'] + "m³/m³" +
-            "<br>Temperature: " + meteoData[hour]['temperature_2m'] + "°C </div>" ;
+            "<br>Temperature: " + meteoData[hour]['temperature_2m'] + "°C  +" +
+            "<br> NDVI: " + meteoData[hour]['ndvi'] + "</div>" ;
 
 
         let idSlider = "time-slider" + key;
@@ -379,7 +387,8 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
                     "<br>Rain: " + meteoData[indexMeteo]['rain'] + "mm" +
                     "<br>Soil Temperature: " + meteoData[indexMeteo]['soil_temperature_0cm'] + "°C" +
                     "<br>Soil Moisture: " + meteoData[indexMeteo]['soil_moisture_0_1cm'] + "m³/m³" +
-                    "<br>Temperature: " + meteoData[indexMeteo]['temperature_2m'] + "°C </div>";
+                    "<br>Temperature: " + meteoData[indexMeteo]['temperature_2m'] + "°C + " +
+                    "<br> NDVI: " + meteoData[indexMeteo]['ndvi'] + "</div>";
 
         document.getElementById("popup-content").innerHTML = popupContent;
         const sliderPolygon = allPolygons[key][dataLength - sliderValue];
@@ -440,15 +449,15 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
     }
 }
 
-export function getForcastLayer(map, ndviData, coordData, meteoData, key, ControlLayer, minus90, lastCall, realForecast, ndviIncluded) {
+export function getForcastLayer(map, ndviData, coordData, meteoData, key, ControlLayer, lastCall, realForecast, ndviIncluded) {
 
     let startTime = coordData[0]['startTime'];
     let date = coordData[0]['dateAquired'];
     let squareList = {};
     if(ndviIncluded) {
-        squareList = getNDVIMatrixLayer(ndviData, map, minus90, realForecast);
+        //squareList = getNDVIMatrixLayer(ndviData, map, realForecast);
     }
-   // trajectoryToMap(map, coordData);
+  //  trajectoryToMap(map, coordData);
     const polyLayers = getCone(map, coordData, squareList);
     if(polyLayers.length > 0) {
         getPopupForCones(polyLayers, meteoData, key, startTime, date, map, ControlLayer, lastCall)

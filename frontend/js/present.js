@@ -713,6 +713,20 @@ function fetchData(url, parsedCoordinates){
     }).then(response => response.json());
 }
 
+function fetchDataModis(url){
+    let dataSend = {};
+    dataSend['coordinates'] = [];
+    dataSend['ndvi'] = ndviIncluded;
+    return fetch(url, {
+        method: "POST",
+        mode: 'cors',
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(dataSend)
+    }).then(response => response.json());
+}
+
 async function processAndMapData(postData, lastCall) {
 
     let originLatLng = null;
@@ -726,20 +740,26 @@ async function processAndMapData(postData, lastCall) {
 
 
     if(!forecast) {
-        const url_ndvi = "/data/result_backend_NDVI.geojson";
+        let ndviData;
+      //  const url_ndvi = "/data/result_backend_NDVI.geojson";
         const url_meteo = "/data/result_backend_meteo.geojson";
-        const responses_ndvi = await getBackendDataFromFile(url_ndvi);
+        //const responses_ndvi = await getBackendDataFromFile(url_ndvi);
         console.log("starting forecast item")
-        const ndviData_obj = Object.entries(responses_ndvi);
+      //  const ndviData_obj = Object.entries(responses_ndvi);
         const responses_meteo = await getBackendDataFromFile(url_meteo);
         for (const [key, value] of Object.entries(responses_meteo)) {
-            const ndviData = ndviData_obj[dataCounter][1];
+           // const ndviData = ndviData_obj[dataCounter][1];
             if(Object.keys(value).length !== 0) {
                 const coordData = Object.values(Object.values(value['coordinates'])[0]);
                 const meteoData = Object.values(Object.values(value['meteo_data'])[0]);
                 const key = Object.keys(value['coordinates'])[0];
-                getForcastLayer(map, ndviData, coordData, meteoData, key, ControlLayer, false, true, false, ndviIncluded);
+                if(ndviIncluded){
+                    const response  = await fetchDataModis(backendURL + "/modis_offline");
+                    ndviData = response
+                }
+                getForcastLayer(map, ndviData, coordData, meteoData, key, ControlLayer, true, false, ndviIncluded);
                 dataCounter++;
+                return;
             }
         }
        return;
@@ -752,10 +772,9 @@ async function processAndMapData(postData, lastCall) {
             if(Object.keys(value).length !== 0) {
                 const coordData = Object.values(Object.values(value['coordinates'])[0]);
                 const meteoData = Object.values(Object.values(value['meteo_data'])[0]);
-                const ndviData = Object.values(value['ndvi_data'])[0];
-                const minus90 = Object.values(value['minus90'])[0];
+                const ndviData = Object.values(value['ndvi_data']);
                 const key = Object.keys(value['coordinates'])[0];
-                getForcastLayer(map, ndviData, coordData, meteoData, key, ControlLayer, value['minus90'], lastCall, true, ndviIncluded);
+                getForcastLayer(map, ndviData[0], coordData, meteoData, key, ControlLayer, lastCall, true, ndviIncluded);
                 dataCounter++;
             }
         }

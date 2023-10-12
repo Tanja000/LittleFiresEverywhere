@@ -2,6 +2,8 @@ import {ndviIncluded} from "./config";
 
 const fillOpacity = 0.25;
 let allPolygons = {};
+let ndviControl = false;
+let ndviSquares = L.markerClusterGroup();
 export let forcastPolygons = L.markerClusterGroup();
 export const handIcon = L.icon({
             iconUrl: './icons/click_finger.png',
@@ -134,7 +136,7 @@ function isCoordinateInRectangle(coord, rectangle) {
   return rectangle.getBounds().contains(coord);
 }
 
-function getCone(map, meteoData, squareList){
+function getCone(map, coordData, meteoData){
     const distanceMeters = 30;
     let coneTipLatLngPrevious = L.latLng();
     let radiusMeters = 0.001;
@@ -143,49 +145,45 @@ function getCone(map, meteoData, squareList){
     let semiSpherePrevious = [];
     let semiSphereCoordinates = [];
     let hullLayers = [];
-    let radiusAdd = 0;
     let oldValue = "";
+    let radiusAdd = 0.001;
 
-    for (const [key, value] of Object.entries(meteoData)) {
+    for (const [key, value] of Object.entries(coordData)) {
         if(value.latitude == oldValue.latitude && value.longitude == oldValue.longitude){
             return hullLayers;
         }
         let coneBaseCenterLatLng = [value.latitude, value.longitude];
-
         let hullCoordinates = turf.featureCollection([]);
         semiSphereCoordinates = [];
+
+        let ndviValue = 0.5
+        if(meteoData[count]['ndvi']) {
+            let ndviValue = meteoData[count]['ndvi'].substring(0, 6);
+            ndviValue = parseFloat(ndviValue);
+        }
 
         if(count != 0) {
             for (let i = 0; i < numPoints; i++) {
                 hullCoordinates.features.push(semiSpherePrevious[i]);
             }
         }
-
-    /*    if(Object.entries(squareList).length > 0) {
-            for (const square of Object.entries(squareList)) {
-                if (isCoordinateInRectangle(coneBaseCenterLatLng, square[1])) {
-                    const rectangleColor = square[1].options.fillColor;
-                    console.log(rectangleColor);
-
-                    if (rectangleColor === 'yellow') {
-                        radiusAdd = 0.00005;
-                    } else if (rectangleColor === 'orange') {
-                        radiusAdd = 0.0001;
-                    } else if (rectangleColor === 'red') {
-                        radiusAdd = 0.0005;
-                    } else if (rectangleColor === 'blue') {
-                        return hullLayers;
-                    } else {
-                        //Tanja TODO: hier neue ndvi Daten holen!
-                        radiusAdd = 0.00005;
-                    }
-                }
-            }
+        if (ndviValue < 0.1) {
+            radiusAdd = 0;
+            radiusMeters = 0;
         }
-        else{
-            radiusAdd += 0.00005;
-        }*/
-        radiusMeters += 0.001;
+        else if (0.2 > ndviValue >= 0.1) {
+            radiusAdd = 0.0001;
+        }
+        else if (0.4 > ndviValue >= 0.2) {
+            radiusAdd = 0.005;
+        }
+        else if (0.7 > ndviValue >= 0.4) {
+            radiusAdd = 0.0025;
+        }
+        else if (1 >= ndviValue >= 0.7) {
+            radiusAdd = 0.001;
+        }
+        radiusMeters += radiusAdd;
         oldValue = value;
 
         for (let i = 0; i < numPoints; i++)
@@ -240,16 +238,15 @@ function getCone(map, meteoData, squareList){
 
 function getNDVIMatrixLayer(ndviData, map, realForcast) {
 
-    const squareSize = 0.0028;
-    const cellSize = 231.656;
+    const squareSize = 231.656358264;
     const colorRanges = [
-        {color: 'blue', min: -1, max: 0.05},
-        {color: 'yellow', min: 0.05, max: 0.3},
-        {color: 'red', min: 0.3, max: 0.7},
-        {color: 'orange', min: 0.7, max: 1},
+        {color: 'blue', min: -1, max: 0.1},
+        {color: 'yellow', min: 0.1, max: 0.2},
+        {color: 'darkred', min: 0.2, max: 0.4},
+        {color: 'orange', min: 0.4, max: 0.7},
+        {color: 'red', min: 0.7, max: 1},
     ];
     let count = 0;
-    let squareList = [];
     if (!realForcast) {
         ndviData = Object.values(ndviData);
     }
@@ -258,13 +255,13 @@ function getNDVIMatrixLayer(ndviData, map, realForcast) {
     ndviData.forEach(data => {
             if (data) {
                 const value = data.ndvi;
-                let lng = data.coordinates[0][0];
+                let lng = data.coordinate[0];
                /* if (minus90) {
                     lng -= 90;
                 }*/
-                let lat = data.coordinates[0][1];
+                let lat = data.coordinate[1];
               //  var marker = L.marker([lat, lng]).addTo(map);
-           /*     let color = 'gray'; // Standardfarbe
+                let color = 'gray'; // Standardfarbe
                 for (const range of colorRanges) {
                     if (value >= range.min && value < range.max) {
                         color = range.color;
@@ -272,22 +269,28 @@ function getNDVIMatrixLayer(ndviData, map, realForcast) {
                     }
                 }
 
+                const centerCoordinate = [lat, lng];
+
+                //L * 180 / (π * R) = a
+                const sizeInDegrees = squareSize * 180 /(Math.PI * 6378137)
+                const northwestCoordinate = [centerCoordinate[0] + sizeInDegrees, centerCoordinate[1] - sizeInDegrees];
+                const southeastCoordinate = [centerCoordinate[0] - sizeInDegrees, centerCoordinate[1] + sizeInDegrees];
+
                const square = L.rectangle([
-                    data.square_edge[0],
-                    data.square_edge[1]
+                    northwestCoordinate ,
+                    southeastCoordinate
                 ], {
                     fillColor: color,
                     color: 'black',
                     weight: 1,
                     fillOpacity: fillOpacity,
                 });
-                squareList.push(square);
-                square.addTo(map);*/
+               ndviSquares.addLayer(square);
             }
             count += 1;
         });
-        return squareList;
 }
+
 
 function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, controlLayer, lastCall){
     const dataLength = polyLayers.length - 1;
@@ -453,12 +456,15 @@ export function getForcastLayer(map, ndviData, coordData, meteoData, key, Contro
 
     let startTime = coordData[0]['startTime'];
     let date = coordData[0]['dateAquired'];
-    let squareList = {};
     if(ndviIncluded) {
-        //squareList = getNDVIMatrixLayer(ndviData, map, realForecast);
+        getNDVIMatrixLayer(ndviData, map, realForecast);
+         if (!ndviControl) {
+               ControlLayer.addOverlay(ndviSquares, " NDVI <img src='./icons/ndvi.png' alt='Icon' width='20' height='20'>");
+               ndviControl = true;
+         }
     }
   //  trajectoryToMap(map, coordData);
-    const polyLayers = getCone(map, coordData, squareList);
+    const polyLayers = getCone(map, coordData, meteoData);
     if(polyLayers.length > 0) {
         getPopupForCones(polyLayers, meteoData, key, startTime, date, map, ControlLayer, lastCall)
     }

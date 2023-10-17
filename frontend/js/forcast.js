@@ -1,8 +1,8 @@
-import {ndviIncluded} from "./config";
 
 const fillOpacity = 0.25;
 let allPolygons = {};
 let ndviControl = false;
+let ndviLegend;
 let ndviSquares = L.markerClusterGroup();
 export let forcastPolygons = L.markerClusterGroup();
 export const handIcon = L.icon({
@@ -285,6 +285,7 @@ function getNDVIMatrixLayer(ndviData, map, realForcast) {
                     weight: 1,
                     fillOpacity: fillOpacity,
                 });
+
                ndviSquares.addLayer(square);
             }
             count += 1;
@@ -370,7 +371,7 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
         });
 
          map.on('overlayremove', function (eventLayer) {
-            if (eventLayer.layer._leaflet_id === 1) {
+            if (eventLayer.layer._leaflet_id === 2) {
                 map.removeLayer(popupHull);
             }
         })
@@ -452,6 +453,30 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
     }
 }
 
+ function closeLegend() {
+    var legend = document.getElementById('legend');
+    console.log(legend);
+}
+
+function getNDVILegend(){
+    const legend = L.control({ position: "bottomleft" });
+    legend.onAdd = function(map) {
+        const div = L.DomUtil.create("div", "legend");
+        div.innerHTML += "<div class='close-button' onclick=" + closeLegend() + ">&times;</div>";
+        div.innerHTML += "<h4>NDVI</h4>";
+        div.innerHTML += '<i style="background: blue"></i><span>NDVI < 0.1 (water, rock, sand, snow)</span><br>';
+        div.innerHTML += '<i style="background: yellow"></i><span>0.1 < NDVI <= 0.2</span><br>';
+        div.innerHTML += '<i style="background: darkred"></i><span>0.2 < NDVI <= 0.4 (shrub and grassland)</span><br>';
+        div.innerHTML += '<i style="background: red"></i><span>0.4 < NDVI <= 0.7 </span><br>';
+        div.innerHTML += '<i style="background: orange"></i><span>0.7 < NDVI <= 0.1 (temperate and tropical rainforests) </span><br>';
+        return div;
+    };
+  return legend;
+}
+
+
+
+
 export function getForcastLayer(map, ndviData, coordData, meteoData, key, ControlLayer, lastCall, realForecast, ndviIncluded) {
 
     let startTime = coordData[0]['startTime'];
@@ -459,8 +484,9 @@ export function getForcastLayer(map, ndviData, coordData, meteoData, key, Contro
     if(ndviIncluded) {
         getNDVIMatrixLayer(ndviData, map, realForecast);
          if (!ndviControl) {
-               ControlLayer.addOverlay(ndviSquares, " NDVI <img src='./icons/ndvi.png' alt='Icon' width='20' height='20'>");
-               ndviControl = true;
+             ControlLayer.addOverlay(ndviSquares, " NDVI <img src='./icons/ndvi.png' alt='Icon' width='20' height='20'>");
+             ndviLegend = getNDVILegend();
+             ndviControl = true;
          }
     }
   //  trajectoryToMap(map, coordData);
@@ -471,6 +497,18 @@ export function getForcastLayer(map, ndviData, coordData, meteoData, key, Contro
     else{
         deleteWheelWaiting();
     }
+
+     map.on('overlayadd', function (eventLayer) {
+         if (eventLayer.layer._leaflet_id === 1) {
+            ndviLegend.addTo(map);
+         }
+     });
+     map.on('overlayremove', function (eventLayer) {
+         if (eventLayer.layer._leaflet_id === 1) {
+            ndviLegend.remove();
+         }
+     });
+
     return;
 }
 

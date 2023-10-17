@@ -252,7 +252,7 @@ async function getMap() {
         "Esri Street Map": Esri_WorldStreetMap
     };
     var overlayMaps = {
-        "Hiking Trails": WaymarkedTrails_hiking,
+       // "Hiking Trails": WaymarkedTrails_hiking,
         //    "Rivers": wmsLayerRiver,
         //    "Lakes": wmsLayerLakes
     };

@@ -14,11 +14,14 @@ import sys
 
 ####################
 
-
 ndvi_from_API = True
 save_modis_to_drive = True
 
 ###############################
+db_key = "a0uijbfxvfi_yBfYYSSq2jVf5XxGRfBRAdTsyrk3Uqur"
+deta = Deta(db_key)
+table_modis_date = deta.Base("NDVI_Date_Modis")
+
 api_url = "https://api.open-meteo.com/v1/forecast"
 
 app = FastAPI()
@@ -66,7 +69,8 @@ def calculate_ndvi(nir_band, red_band):
     return round(ndvi, 4)
 
 
-def get_square_matrix(center_coordinate, squareSize, valueList):
+def get_square_matrix(center_coordinate, valueList):
+    squareSize = 231.656358264
     matrix = []
     rows, cols = 9, 9
     coordinate_matrix = np.zeros((rows, cols, 2))
@@ -75,12 +79,11 @@ def get_square_matrix(center_coordinate, squareSize, valueList):
 
     for i in range(cols):
         for j in range(rows):
-            lat_offset = (i - (cols - 1) / 2) * stepInDegrees
-            lon_offset = (j - (rows - 1) / 2) * stepInDegrees
+            lat_offset = ((cols - 1) / 2 - i) * stepInDegrees
+            lon_offset = ((rows - 1) / 2 - j) * stepInDegrees
             new_lat = center_coordinate[0] + lat_offset
             new_lon = center_coordinate[1] + lon_offset
-            coordinate_matrix[i, j] = [new_lat, new_lon]
-
+            coordinate_matrix[cols - 1 - i, j] = [new_lat, new_lon]
 
     count = len(valueList) - 1
     for row in coordinate_matrix:
@@ -92,17 +95,6 @@ def get_square_matrix(center_coordinate, squareSize, valueList):
             matrix.append(item_dict)
 
     return matrix
-
-
-def ndviDataToDCoordinatesDict(ndvi_list, lat_center, lng_center):
-    # cellsize": 231.656358264  in Meters! Is it for one cell ? or 81 cells?
-    # 9x9 - 81
-
-    print("calculate new edge coordinates")
-    cell_size = 231.656358264
-    ndvi_matrix = get_square_matrix([lat_center, lng_center], cell_size, ndvi_list)
-
-    return ndvi_matrix
 
 
 def getNVIDataModis():
@@ -122,7 +114,7 @@ def getNVIDataModis():
     lat_center = 15.2179524
     lng_center = 38.79284
 
-    ndvi_list = ndviDataToDCoordinatesDict(ndvi_data, lat_center, lng_center)
+    ndvi_list = get_square_matrix([lat_center, lng_center], ndvi_data)
 
     return ndvi_list
 
@@ -149,9 +141,11 @@ def getNewNDVIDateAPI():
         if response.status_code == 200:
             data = response.json()
             last_three = data['dates'][-3:]
-            df = pd.DataFrame(last_three)
-            file_date = "../frontend/public/data/modis_ndvi_date.csv"
-            df.to_csv(file_date, index=False)
+
+            count = 1
+            for item in last_three:
+                table_modis_date.update(item, str(count))
+                count += 1
     except Exception as ex:
         print("Ein unerwarteter Fehler ist aufgetreten:", ex)
 
@@ -180,7 +174,7 @@ def getNDVIDataModisAPI(df_date, latitude, longitude, no):
                 ndvi_band = calculate_ndvi(nir_band, red_band)
                 ndvi_data.append(ndvi_band)
 
-            ndvi_list = ndviDataToDCoordinatesDict(ndvi_data, latitude, longitude)
+            ndvi_list = get_square_matrix([latitude, longitude], ndvi_data)
             return ndvi_list, calendar_date
 
         else:
@@ -351,7 +345,6 @@ def get_meteo_data(lat, lng, date, hour_no):
                     "&end_date=" + date_end + "&hourly=windspeed_10m&hourly=winddirection_10m&hourly=relativehumidity_2m&hourly=temperature_2m" \
                                               "&hourly=evapotranspiration&hourly=rain&hourly=soil_temperature_0cm&hourly=soil_moisture_0_1cm"
 
-
     try:
         response = urllib.request.urlopen(url_windspeed).read()
         response = json.loads(response)
@@ -390,10 +383,9 @@ def round_to_next_hour(time_str):
     return rounded_hour
 
 
-def get_new_ndvi(lat, lng):
+def get_new_ndvi(lat, lng, modis_dates):
     if ndvi_from_API:
-        file_date = "../frontend/public/data/modis_ndvi_date.csv"
-        df_date = pd.read_csv(file_date)
+        df_date = pd.DataFrame.from_dict(modis_dates)
         ndvi, ndvi_date = getNDVIDataModisAPI(df_date, lat, lng, 0)
     else:
         ndvi_date = "test"
@@ -420,7 +412,7 @@ def find_nearest_coordinate(data, new_coord):
     return nearest_value
 
 
-def get_new_coordinate(lat, lng, date, time_str, ndvi_included):
+def get_new_coordinate(lat, lng, date, time_str, ndvi_included, modis_dates):
     day = {}
 
     time = round_to_next_hour(time_str)
@@ -430,7 +422,7 @@ def get_new_coordinate(lat, lng, date, time_str, ndvi_included):
     hour_counter = 0
 
     if ndvi_included:
-        ndvi, ndvi_date = get_new_ndvi(lng, lat)
+        ndvi, ndvi_date = get_new_ndvi(lng, lat, modis_dates)
     else:
         ndvi = None
         ndvi_date = None
@@ -563,13 +555,14 @@ async def receive_data(data: dict):
     coordinates_dict = {}
     meteo_dict = {}
     ndvi_dict = {}
+    modis_dates = table_modis_date.fetch().items
     for key, value in coordinates.items():
         latitude = value["latitude"]
         longitude = value["longitude"]
         date = value["dateAquired"]
         time = value["time"]
         # confidence = value["confidence"]
-        coordinates, meteo, ndvi = get_new_coordinate(longitude, latitude, date, time, ndvi_included)
+        coordinates, meteo, ndvi = get_new_coordinate(longitude, latitude, date, time, ndvi_included, modis_dates)
         if ndvi_included:
             ndvi_dict[key] = ndvi
         else:
@@ -599,13 +592,14 @@ async def receive_data(data: dict):
     coordinates_dict = {}
     meteo_dict = {}
     ndvi_dict = {}
+    modis_dates = table_modis_date.fetch().items
     for key, value in coordinates.items():
         latitude = value["latitude"]
         longitude = value["longitude"]
         date = value["dateAquired"]
         time = value["time"]
         # confidence = value["confidence"]
-        coordinates, meteo, ndvi = get_new_coordinate(longitude, latitude, date, time, ndvi_included)
+        coordinates, meteo, ndvi = get_new_coordinate(longitude, latitude, date, time, ndvi_included, modis_dates)
         if ndvi_included:
             ndvi_dict[key] = ndvi
         else:
@@ -628,13 +622,14 @@ async def receive_data(data: dict):
     coordinates_dict = {}
     meteo_dict = {}
     ndvi_dict = {}
+    modis_dates = table_modis_date.fetch().items
     for key, value in coordinates.items():
         latitude = value["latitude"]
         longitude = value["longitude"]
         date = value["dateAquired"]
         time = value["time"]
         # confidence = value["confidence"]
-        coordinates, meteo, ndvi = get_new_coordinate(longitude, latitude, date, time, ndvi_included)
+        coordinates, meteo, ndvi = get_new_coordinate(longitude, latitude, date, time, ndvi_included, modis_dates)
         if ndvi_included:
             ndvi_dict[key] = ndvi
         else:
@@ -656,13 +651,14 @@ async def receive_data(data: dict):
     coordinates_dict = {}
     meteo_dict = {}
     ndvi_dict = {}
+    modis_dates = table_modis_date.fetch().items
     for key, value in coordinates.items():
         latitude = value["latitude"]
         longitude = value["longitude"]
         date = value["dateAquired"]
         time = value["time"]
         # confidence = value["confidence"]
-        coordinates, meteo, ndvi = get_new_coordinate(longitude, latitude, date, time, ndvi_included)
+        coordinates, meteo, ndvi = get_new_coordinate(longitude, latitude, date, time, ndvi_included, modis_dates)
         if ndvi_included:
             ndvi_dict[key] = ndvi
         else:
@@ -702,7 +698,7 @@ def nothing_here():
 # schedule.every(3).hours.do(getModisCSV24h)
 
 # schedule.every(5).seconds.do(get_greatest_burning_areas)
-# getNewNDVIDateAPI()
+#getNewNDVIDateAPI()
 # get_greatest_burning_areas()
 
 print("starting backend")

@@ -453,17 +453,15 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
     }
 }
 
- function closeLegend() {
-    var legend = document.getElementById('legend');
-    console.log(legend);
-}
+
+
 
 function getNDVILegend(){
     const legend = L.control({ position: "bottomleft" });
     legend.onAdd = function(map) {
         const div = L.DomUtil.create("div", "legend");
-        div.innerHTML += "<div class='close-button' onclick=" + closeLegend() + ">&times;</div>";
-        div.innerHTML += "<h4>NDVI</h4>";
+        div.innerHTML += "<div class='close-button' onclick=closeLegend()>&times;</div>";
+       div.innerHTML += "<h4>NDVI</h4>";
         div.innerHTML += '<i style="background: blue"></i><span>NDVI < 0.1 (water, rock, sand, snow)</span><br>';
         div.innerHTML += '<i style="background: yellow"></i><span>0.1 < NDVI <= 0.2</span><br>';
         div.innerHTML += '<i style="background: darkred"></i><span>0.2 < NDVI <= 0.4 (shrub and grassland)</span><br>';
@@ -471,6 +469,7 @@ function getNDVILegend(){
         div.innerHTML += '<i style="background: orange"></i><span>0.7 < NDVI <= 0.1 (temperate and tropical rainforests) </span><br>';
         return div;
     };
+
   return legend;
 }
 
@@ -484,7 +483,7 @@ export function getForcastLayer(map, ndviData, coordData, meteoData, key, Contro
     if(ndviIncluded) {
         getNDVIMatrixLayer(ndviData, map, realForecast);
          if (!ndviControl) {
-             ControlLayer.addOverlay(ndviSquares, " NDVI <img src='./icons/ndvi.png' alt='Icon' width='20' height='20'>");
+             ControlLayer.addOverlay(ndviSquares, " NDVI <img src='./icons/ndvi.PNG' alt='Icon' width='20' height='20'>");
              ndviLegend = getNDVILegend();
              ndviControl = true;
          }

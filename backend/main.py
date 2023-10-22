@@ -144,6 +144,9 @@ def getNewNDVIDateAPI():
 
             count = 1
             for item in last_three:
+                #  current_dateTime = datetime.now()
+                #   zeitstempel_als_string = current_dateTime.strftime("%Y-%m-%d %H:%M:%S")
+                #  item["timestamp"] = zeitstempel_als_string
                 table_modis_date.update(item, str(count))
                 count += 1
     except Exception as ex:
@@ -678,18 +681,16 @@ async def modis_offline(data: dict):
 def actions(action: dict):
     sys.stdout.flush()
     sys.stderr.flush()
-    print(action)
-    getModisCSV7days()
-    getNewNDVIDateAPI()
-    # if action['event']['id'] == "getModisCSV7days":
-    #    print("can be moved here")
+    if action['event']['id'] == "getModisCSV7days":
+        getModisCSV7days()
+    if action['event']['id'] == "getNewNDVIDateAPI":
+        getNewNDVIDateAPI()
 
 
 # getModisCSV7days()
 @app.get("/")
 def nothing_here():
     print("there is nothing here")
-
 
 # Download alle 3 Stunden planen
 # getModisCSV24h()

@@ -782,6 +782,7 @@ async function processAndMapData(postData, lastCall) {
       .catch(error => {
         console.error('Ein Fehler ist aufgetreten:', error);
       });
+
     return;
 }
 

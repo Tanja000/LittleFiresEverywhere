@@ -344,8 +344,11 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
 
         let idSlider = "time-slider" + key;
         let sliderValue = dataLength - currentIndex;
-        let sliderContent = popupContent + '<br><div id="slider-container">' +
-            '<input id=' + idSlider + ' type="range" min="0" max="10" step="1" value=' + sliderValue + '></div>';
+        let sliderContent = popupContent;
+        if(dataLength > 0) {
+            sliderContent += '<br><div id="slider-container">' +
+                '<input id=' + idSlider + ' type="range" min="0" max=' + dataLength + ' step="1" value=' + sliderValue + '></div>';
+        }
 
         let popupHull = L.popup({
             offset: [75, -75],
@@ -363,7 +366,9 @@ function getPopupForCones(polyLayers, meteoData,  key, startTime_, date_, map, c
                 color: 'black'
             });
             slider = document.getElementById(idSlider);
-            slider.addEventListener('input', sliderChanged);
+            if(dataLength > 0) {
+                slider.addEventListener('input', sliderChanged);
+            }
 
             if (!textLabel) {
                 poly.closePopup();
